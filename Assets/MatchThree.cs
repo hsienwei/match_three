@@ -4,6 +4,51 @@ using UnityEngine;
 using Lean.Touch;
 using DG.Tweening;
 
+public class GridState
+{
+    public int Color;
+    public bool IsScanned;
+}
+
+public class MatchThreeLogic
+{
+    private GridState[,] m_Grid;
+    private int m_Row, m_Col;
+    private int m_ColorCount;
+
+    public MatchThreeLogic(int Col, int Row, int ColorCount)
+    {
+        m_Grid = new GridState[Col, Row];
+        m_Row = Row;
+        m_Col =  Col;
+        m_ColorCount = ColorCount;
+
+        Generate(true);
+    }
+
+    int GetCol(){   return m_Col;   }
+    int GetRow(){   return m_Row;   }
+
+    public int GetColor(int Col, int Row)
+    {
+        return m_Grid[Col, Row].Color;
+    }
+
+    void Generate(bool IsInit = false)
+    {
+        for(int i= 0; i< m_Col; ++i)
+        {
+            for (int j = 0; j < m_Row; ++j)
+            {
+                m_Grid[i, j] = new GridState();
+                m_Grid[i, j].Color = Random.Range(0, m_ColorCount);
+            }
+        }
+    }
+
+
+}
+
 public class MatchThree : MonoBehaviour {
     public int m_Row;
     public int m_Colume;
@@ -16,9 +61,13 @@ public class MatchThree : MonoBehaviour {
     private Transform[,] m_GemGrid;
     private Vector3[,] m_GemPos;
 
+    private MatchThreeLogic m_MT;
+
     // Use this for initialization
     void Start () {
-		Vector3 Offset = new Vector3((m_Colume -1) * 0.5f * m_Size, (m_Row - 1) * 0.5f * m_Size, 0);
+
+        m_MT = new MatchThreeLogic(m_Colume, m_Row, 6);
+        Vector3 Offset = new Vector3((m_Colume -1) * 0.5f * m_Size, (m_Row - 1) * 0.5f * m_Size, 0);
 
         m_GemGrid = new Transform[m_Colume, m_Row];
         m_GemPos = new Vector3[m_Colume, m_Row];
@@ -27,7 +76,7 @@ public class MatchThree : MonoBehaviour {
         {
             for (int j = 0; j < m_Colume; ++j)
             {
-                SpriteRenderer GemInst = GameObject.Instantiate(m_GemTmpList[Random.Range(0, m_GemTmpList.Length)]);
+                SpriteRenderer GemInst = GameObject.Instantiate(m_GemTmpList[m_MT.GetColor(j, i)]);
                 GemInst.transform.position = new Vector3(j * m_Size, i * m_Size, 0) - Offset;
                 m_GemGrid[j, i] = GemInst.transform;
                 m_GemPos[j, i] = GemInst.transform.position;
@@ -83,6 +132,10 @@ public class MatchThree : MonoBehaviour {
         m_GemGrid[Col, Row] = TargetGemGrid;
     }
 
+
+
+
+    #region LeanTouch
 
     private Vector2 m_TouchGemPos;
 
@@ -170,4 +223,6 @@ public class MatchThree : MonoBehaviour {
         Debug.Log("    twist radians: " + LeanGesture.GetTwistRadians(fingers));
         Debug.Log("    screen delta: " + LeanGesture.GetScreenDelta(fingers));*/
     }
+
+    #endregion
 }
