@@ -8,3 +8,6 @@ LeanTouch
 
 目前使用的測試資源  
 https://www.assetstore.unity3d.com/en/#!/content/17646
+
+Demo:
+http://hsienwei.github.io/pages/match_three/
