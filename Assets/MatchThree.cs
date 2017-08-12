@@ -7,12 +7,12 @@ using DG.Tweening;
 public class GridState
 {
     public int Color;
-    public int ClearTime;
+    public int MatchCount;
 
     public GridState()
     {
         Color = -1;
-        ClearTime = 0;
+        MatchCount = 0;
     }
 }
 
@@ -21,6 +21,8 @@ public class MatchThreeLogic
     private GridState[,] m_Grid;
     private int m_Row, m_Col;
     private int m_ColorCount;
+
+    private bool m_IsHasMatch;
 
     public MatchThreeLogic(int Col, int Row, int ColorCount)
     {
@@ -42,7 +44,7 @@ public class MatchThreeLogic
 
     public int GetClearCount(int Col, int Row)
     {
-        return m_Grid[Col, Row].ClearTime;
+        return m_Grid[Col, Row].MatchCount;
     }
 
     public void Generate(bool IsInit = false)
@@ -94,39 +96,48 @@ public class MatchThreeLogic
 
     public void Scan()
     {
-        var ScanRecord = new bool[m_Col, m_Row];
-
-        CleanClearState();
+        m_IsHasMatch = false;
+        CleanMatchState();
 
         for (int i = 0; i < m_Col; ++i)
         {
             for (int j = 0; j < m_Row; ++j)
             {
-                CheckSameColor(i, j, ref m_Grid, ref ScanRecord);
+                if(CheckMatch(i, j ))
+                {
+                    m_IsHasMatch = true;
+                }
             }
         }
     }
 
-    public void CleanClearState()
+    public bool IsHasClearState()
+    {
+        return m_IsHasMatch;
+    }
+
+    public void CleanMatchState()
     {
         for (int i = 0; i < m_Col; ++i)
         {
             for (int j = 0; j < m_Row; ++j)
             {
-                if(m_Grid[i, j].ClearTime > 0)
+                if(m_Grid[i, j].MatchCount > 0)
                 {
                     m_Grid[i, j].Color = -1;
-                    m_Grid[i, j].ClearTime = 0;
+                    m_Grid[i, j].MatchCount = 0;
                 }
                 
             }
         }
     }
 
-    void CheckSameColor(int Col, int Row, ref GridState[, ] Grid, ref bool[, ] ScanRecord)
+    bool CheckMatch(int Col, int Row)
     {
-        int CurrColor = Grid[Col, Row].Color;
-        if (CurrColor == -1) return;
+        int CurrColor = m_Grid[Col, Row].Color;
+        if (CurrColor == -1) return false;
+
+        bool IsMatch = false;
 
         //橫豎各自檢查
 
@@ -137,38 +148,42 @@ public class MatchThreeLogic
         int LCol = Col - 1, LRow = Row;
         if (LCol >= 0)
         {
-            LSame = (CurrColor == Grid[LCol, LRow].Color);
+            LSame = (CurrColor == m_Grid[LCol, LRow].Color);
         }
         int RCol = Col + 1, RRow = Row;
         if (RCol < m_Col)
         {
-            RSame = (CurrColor == Grid[RCol, RRow].Color);
+            RSame = (CurrColor == m_Grid[RCol, RRow].Color);
         }
 
         int UCol = Col , URow = Row - 1;
         if (URow >= 0)
         {
-            USame = (CurrColor == Grid[UCol, URow].Color);
+            USame = (CurrColor == m_Grid[UCol, URow].Color);
         }
         int DCol = Col, DRow = Row + 1;
         if (DRow < m_Row)
         {
-            DSame = (CurrColor == Grid[DCol, DRow].Color);
+            DSame = (CurrColor == m_Grid[DCol, DRow].Color);
         }
         
         if(LSame && RSame)
         {
-            Grid[Col, Row].ClearTime++;
-            Grid[LCol, LRow].ClearTime++;
-            Grid[RCol, RRow].ClearTime++;
+            m_Grid[Col, Row].MatchCount++;
+            m_Grid[LCol, LRow].MatchCount++;
+            m_Grid[RCol, RRow].MatchCount++;
+            IsMatch = true;
         }
 
         if (USame && DSame)
         {
-            Grid[Col, Row].ClearTime++;
-            Grid[UCol, URow].ClearTime++;
-            Grid[DCol, DRow].ClearTime++;
+            m_Grid[Col, Row].MatchCount++;
+            m_Grid[UCol, URow].MatchCount++;
+            m_Grid[DCol, DRow].MatchCount++;
+            IsMatch = true;
         }
+
+        return IsMatch;
     }
 
     public void print()
@@ -193,7 +208,7 @@ public class MatchThreeLogic
         {
             for (int i = 0; i < m_Col; ++i)
             {
-                LogBuilder.Append(m_Grid[i, j].ClearTime);
+                LogBuilder.Append(m_Grid[i, j].MatchCount);
                 LogBuilder.Append(" ");
             }
             LogBuilder.Append("\n");
@@ -204,6 +219,9 @@ public class MatchThreeLogic
 }
 
 public class MatchThree : MonoBehaviour {
+    public UnityEngine.UI.InputField m_TextTimeScale;
+    public UnityEngine.UI.Button m_BtnTimeScaleSet;
+
     public int m_Row;
     public int m_Colume;
     public Camera m_Camera;
@@ -219,6 +237,11 @@ public class MatchThree : MonoBehaviour {
 
     // Use this for initialization
     void Start () {
+
+        m_TextTimeScale.text = "" + Time.timeScale;
+        m_BtnTimeScaleSet.onClick.AddListener(() => {
+            Time.timeScale = float.Parse(m_TextTimeScale.text);
+        });
 
         m_MT = new MatchThreeLogic(m_Colume, m_Row, 6);
         
@@ -245,11 +268,24 @@ public class MatchThree : MonoBehaviour {
                     GemInst.transform.position = new Vector3(j * m_Size, i * m_Size, 0) - Offset;
                     m_GemGrid[j, i] = GemInst.transform;
                     GemInst.transform.localScale = Vector3.zero;
-                    GemInst.transform.DOScale(1.3f, 0.5f);
+                    GemInst.transform.DOScale(1.3f, 0.3f);
                     m_GemPos[j, i] = GemInst.transform.position;
                 }
             }
         }
+
+        Sequence Seq = DOTween.Sequence();
+        Seq.AppendInterval(0.3f);
+        Seq.AppendCallback(() =>
+        {
+
+            m_MT.Scan();
+            if (m_MT.IsHasClearState())
+            {
+                Clear();
+            }
+        });
+        
     }
 
     //
@@ -305,18 +341,21 @@ public class MatchThree : MonoBehaviour {
         var TargetGemGrid = m_GemGrid[TargetCol, TargetRow];
         var FromGemGrid = m_GemGrid[Col, Row];
 
-        TargetGemGrid.transform.DOMove(m_GemPos[Col, Row], 0.2f);
-        FromGemGrid.transform.DOMove(m_GemPos[TargetCol, TargetRow], 0.2f);
+        TargetGemGrid.transform.DOMove(m_GemPos[Col, Row], 0.3f);
+        FromGemGrid.transform.DOMove(m_GemPos[TargetCol, TargetRow],0.3f);
 
         m_GemGrid[TargetCol, TargetRow] = FromGemGrid;
         m_GemGrid[Col, Row] = TargetGemGrid;
 
         Sequence Seq = DOTween.Sequence();
-        Seq.AppendInterval(0.2f);
+        Seq.AppendInterval(0.3f);
         Seq.AppendCallback(() => {
             m_MT.Swipe(Col, Row, Direction);
             m_MT.Scan();
-            Clear();
+            if (m_MT.IsHasClearState())
+            {
+                Clear();
+            }
         });
         
     }
@@ -329,16 +368,28 @@ public class MatchThree : MonoBehaviour {
             {
                 if(m_MT.GetClearCount(j, i) > 0)
                 {
-                    GameObject.Destroy(m_GemGrid[j, i].gameObject);
+                    var Gem = m_GemGrid[j, i].transform;
                     m_GemGrid[j, i] = null;
+                    Gem.DOScale(0, 0.3f).OnComplete(()=> {
+                        GameObject.Destroy(Gem.gameObject);
+                    });
                 }
-                
             }
         }
 
-        m_MT.CleanClearState();
-        m_MT.Generate(false);
-        Generate();
+        Sequence Seq = DOTween.Sequence();
+        Seq.AppendInterval(0.3f);
+        Seq.AppendCallback(() =>
+        {
+            m_MT.CleanMatchState();
+            
+
+            m_MT.Generate(false);
+            Generate();
+            
+        });
+
+        
     }
 
     public void Scan()
