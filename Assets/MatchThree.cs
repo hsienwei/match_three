@@ -18,11 +18,19 @@ public class GridState
 
 public class MatchThreeLogic
 {
+    public delegate void OnGenerate(int Col, int Row, int Color);
+    public delegate void OnClear(int Col, int Row);
+    public delegate void OnMove(int Col, int Row, int TargetCol, int TargetRow);
+
     private GridState[,] m_Grid;
     private int m_Row, m_Col;
     private int m_ColorCount;
 
     private bool m_IsHasMatch;
+
+    public OnGenerate m_CBGenerate;
+    public OnClear m_CBClear;
+    public OnMove m_CBMove;
 
     public MatchThreeLogic(int Col, int Row, int ColorCount)
     {
@@ -31,7 +39,7 @@ public class MatchThreeLogic
         m_Col = Col;
         m_ColorCount = ColorCount;
 
-        Generate(true);
+        
     }
 
     int GetCol(){   return m_Col;   }
@@ -47,22 +55,103 @@ public class MatchThreeLogic
         return m_Grid[Col, Row].MatchCount;
     }
 
+    public void Update(float DeltaTime)
+    {
+
+    }
+
     public void Generate(bool IsInit = false)
     {
-        for(int i= 0; i< m_Col; ++i)
+        if (IsInit)
         {
-            for (int j = 0; j < m_Row; ++j)
+            for (int i = 0; i < m_Col; ++i)
             {
-                if (IsInit)
+                for (int j = 0; j < m_Row; ++j)
                 {
-                    m_Grid[i, j] = new GridState();
-                }
-                if (m_Grid[i, j].Color == -1)
-                {
-                    m_Grid[i, j].Color = Random.Range(0, m_ColorCount);
+                    if (IsInit)
+                    {
+                        m_Grid[i, j] = new GridState();
+                    }
                 }
             }
         }
+
+
+        //for (int j = m_Row - 1; j >= 0; --j)
+        for (int j = 0; j < m_Row; ++j)
+        {
+            for (int i = 0; i < m_Col; ++i)
+            {
+                if (m_Grid[i, j].Color == -1)
+                {
+                    // 先補再產
+                    // 上方沒有的話要產出.
+                    // 先只看正上方.
+
+                    //for(int k = j-1;  k >=0 ; --k)
+                    for (int k = j + 1; k < m_Row; ++k)
+                    {
+                        if(m_Grid[i, k].Color != -1)
+                        {
+                            m_Grid[i, j].Color = m_Grid[i, k].Color;
+                            m_Grid[i, k].Color = -1;
+                            if (m_CBMove != null)
+                            {
+                                m_CBMove(i, k, i, j);
+                            }
+                            break;
+                        }
+                        /*else
+                        {
+                            m_Grid[i, j].Color = Random.Range(0, m_ColorCount);
+                            if (m_CBGenerate != null)
+                            {
+                                m_CBGenerate(i, j, m_Grid[i, j].Color);
+                            }
+                        }*/
+                    }
+                }
+            }
+        }
+
+        for (int i = 0; i < m_Col; ++i)
+        {
+            for (int j = 0; j < m_Row; ++j)
+            {
+
+                if (m_Grid[i, j].Color == -1)
+                {
+                    //TODO: 檢查上方掉落
+                    // 先補再產, 兩輪
+
+                    // 上方沒有的話要產出
+                    m_Grid[i, j].Color = Random.Range(0, m_ColorCount);
+                    if (m_CBGenerate != null)
+                    {
+                        m_CBGenerate(i, j, m_Grid[i, j].Color);
+                    }
+                }
+            }
+        }
+        /*for (int i= 0; i< m_Col; ++i)
+        {
+            for (int j = 0; j < m_Row; ++j)
+            {
+                
+                if (m_Grid[i, j].Color == -1)
+                {
+                    //TODO: 檢查上方掉落
+                    // 先補再產, 兩輪
+
+                    // 上方沒有的話要產出
+                    m_Grid[i, j].Color = Random.Range(0, m_ColorCount);
+                    if (m_CBGenerate != null)
+                    {
+                        m_CBGenerate(i, j, m_Grid[i, j].Color);
+                    }
+                }
+            }
+        }*/
     }
 
     public void Swipe(int Col, int Row, int Direction)
@@ -122,10 +211,15 @@ public class MatchThreeLogic
         {
             for (int j = 0; j < m_Row; ++j)
             {
+                // TODO:產出特殊寶石
                 if(m_Grid[i, j].MatchCount > 0)
                 {
                     m_Grid[i, j].Color = -1;
                     m_Grid[i, j].MatchCount = 0;
+                    if (m_CBClear != null)
+                    {
+                        m_CBClear(i, j);
+                    }
                 }
                 
             }
@@ -244,20 +338,61 @@ public class MatchThree : MonoBehaviour {
         });
 
         m_MT = new MatchThreeLogic(m_Colume, m_Row, 6);
-        
+        m_MT.m_CBGenerate = _OnGenerate;
+        m_MT.m_CBClear = _OnClear;
+        m_MT.m_CBMove = _OnMove;
+
 
         m_GemGrid = new Transform[m_Colume, m_Row];
         m_GemPos = new Vector3[m_Colume, m_Row];
 
-        Generate();
-        
+        m_MT.Generate(true);
 
-	}
+        Generate();
+    }
+
+    private void FixedUpdate()
+    {
+        m_MT.Update(Time.fixedDeltaTime);
+    }
+
+    void _OnGenerate(int Col, int Row, int Color)
+    {
+        Vector3 Offset = new Vector3((m_Colume - 1) * 0.5f * m_Size, (m_Row - 1) * 0.5f * m_Size, 0);
+
+        if (m_GemGrid[Col, Row] == null)
+        {
+            SpriteRenderer GemInst = GameObject.Instantiate(m_GemTmpList[m_MT.GetColor(Col, Row)]);
+            GemInst.transform.position = new Vector3(Col * m_Size, Row * m_Size, 0) - Offset;
+            m_GemGrid[Col, Row] = GemInst.transform;
+            GemInst.transform.localScale = Vector3.zero;
+            GemInst.transform.DOScale(1.3f, 0.3f);
+            m_GemPos[Col, Row] = GemInst.transform.position;
+        }
+
+    }
+    void _OnClear(int Col, int Row)
+    {
+        var Gem = m_GemGrid[Col, Row].transform;
+        m_GemGrid[Col, Row] = null;
+        Gem.DOScale(0, 0.3f).OnComplete(() =>
+        {
+            GameObject.Destroy(Gem.gameObject);
+        });
+    }
+
+    void _OnMove(int Col, int Row, int TargetCol, int TargetRow)
+    {
+        var Gem = m_GemGrid[Col, Row].transform;
+        m_GemGrid[Col, Row] = null;
+        m_GemGrid[TargetCol, TargetRow] = Gem;
+        Gem.DOMove(m_GemPos[TargetCol, TargetRow], 0.3f);
+    }
 
 
     public void Generate()
     {
-        Vector3 Offset = new Vector3((m_Colume - 1) * 0.5f * m_Size, (m_Row - 1) * 0.5f * m_Size, 0);
+        /*Vector3 Offset = new Vector3((m_Colume - 1) * 0.5f * m_Size, (m_Row - 1) * 0.5f * m_Size, 0);
         for (int i = 0; i < m_Row; ++i)
         {
             for (int j = 0; j < m_Colume; ++j)
@@ -272,7 +407,7 @@ public class MatchThree : MonoBehaviour {
                     m_GemPos[j, i] = GemInst.transform.position;
                 }
             }
-        }
+        }*/
 
         Sequence Seq = DOTween.Sequence();
         Seq.AppendInterval(0.3f);
@@ -362,7 +497,7 @@ public class MatchThree : MonoBehaviour {
 
     public void Clear()
     {
-        for (int i = 0; i < m_Row; ++i)
+        /*for (int i = 0; i < m_Row; ++i)
         {
             for (int j = 0; j < m_Colume; ++j)
             {
@@ -375,7 +510,7 @@ public class MatchThree : MonoBehaviour {
                     });
                 }
             }
-        }
+        }*/
 
         Sequence Seq = DOTween.Sequence();
         Seq.AppendInterval(0.3f);
