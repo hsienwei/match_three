@@ -8,11 +8,13 @@ public class GridState
 {
     public int Color;
     public int MatchCount;
+    public int LockCnt;
 
     public GridState()
     {
         Color = -1;
         MatchCount = 0;
+        LockCnt = 0;
     }
 }
 
@@ -20,7 +22,7 @@ public class MatchThreeLogic
 {
     public delegate void OnGenerate(int Col, int Row, int Color);
     public delegate void OnClear(int Col, int Row);
-    public delegate void OnMove(int Col, int Row, int TargetCol, int TargetRow);
+    public delegate void OnMove(int Col, int Row, int TargetCol, int TargetRow, bool Switch);
 
     private GridState[,] m_Grid;
     private int m_Row, m_Col;
@@ -55,9 +57,18 @@ public class MatchThreeLogic
         return m_Grid[Col, Row].MatchCount;
     }
 
-    public void Update(float DeltaTime)
+    public void Update()
     {
-
+        for (int i = 0; i < m_Col; ++i)
+        {
+            for (int j = 0; j < m_Row; ++j)
+            {
+                if (m_Grid[i, j].LockCnt > 0)
+                {
+                    m_Grid[i, j].LockCnt--;
+                }
+            }
+        }
     }
 
     public void Generate(bool IsInit = false)
@@ -97,7 +108,7 @@ public class MatchThreeLogic
                             m_Grid[i, k].Color = -1;
                             if (m_CBMove != null)
                             {
-                                m_CBMove(i, k, i, j);
+                                m_CBMove(i, k, i, j, false);
                             }
                             break;
                         }
@@ -159,7 +170,8 @@ public class MatchThreeLogic
         int CurrColor = m_Grid[Col, Row].Color;
         int TargetCol = Col, TargetRow = Row;
 
-        switch(Direction)
+        
+        switch (Direction)
         {
             case 0:
                 TargetRow++; break;
@@ -175,6 +187,12 @@ public class MatchThreeLogic
         if (TargetCol >= m_Col) return;
         if (TargetRow < 0) return;
         if (TargetRow >= m_Row) return;
+
+        if (m_Grid[TargetCol, TargetRow].LockCnt > 0)
+        {
+            m_CBMove(TargetCol, TargetRow, Col, Row, true);
+            return;
+        }
 
         int TargetColor = m_Grid[TargetCol, TargetRow].Color;
 
@@ -216,6 +234,7 @@ public class MatchThreeLogic
                 {
                     m_Grid[i, j].Color = -1;
                     m_Grid[i, j].MatchCount = 0;
+                    m_Grid[i, j].LockCnt += 1;
                     if (m_CBClear != null)
                     {
                         m_CBClear(i, j);
@@ -329,6 +348,8 @@ public class MatchThree : MonoBehaviour {
 
     private MatchThreeLogic m_MT;
 
+    float UpdateTimeInterval = 0;
+
     // Use this for initialization
     void Start () {
 
@@ -349,11 +370,19 @@ public class MatchThree : MonoBehaviour {
         m_MT.Generate(true);
 
         Generate();
+
+        UpdateTimeInterval = Time.realtimeSinceStartup;
     }
 
+
+    
     private void FixedUpdate()
     {
-        m_MT.Update(Time.fixedDeltaTime);
+        if (Time.realtimeSinceStartup - UpdateTimeInterval > 1)
+        {
+            m_MT.Update();
+            UpdateTimeInterval = Time.realtimeSinceStartup;
+        }
     }
 
     void _OnGenerate(int Col, int Row, int Color)
@@ -381,12 +410,17 @@ public class MatchThree : MonoBehaviour {
         });
     }
 
-    void _OnMove(int Col, int Row, int TargetCol, int TargetRow)
+    void _OnMove(int Col, int Row, int TargetCol, int TargetRow, bool Switch)
     {
-        var Gem = m_GemGrid[Col, Row].transform;
-        m_GemGrid[Col, Row] = null;
+        var Gem = m_GemGrid[Col, Row];
+        var TargetGem = m_GemGrid[TargetCol, TargetRow];
+        m_GemGrid[Col, Row] = Switch ? TargetGem : null ;
         m_GemGrid[TargetCol, TargetRow] = Gem;
-        Gem.DOMove(m_GemPos[TargetCol, TargetRow], 0.3f);
+        Gem.DOMove(m_GemPos[TargetCol, TargetRow], 0.3f * (Mathf.Abs( TargetRow  - Row) + Mathf.Abs(TargetCol - Col)));
+        if (Switch)
+        {
+            TargetGem.DOMove(m_GemPos[Col, Row], 0.3f * (Mathf.Abs(TargetRow - Row) + Mathf.Abs(TargetCol - Col)));
+        }
     }
 
 
