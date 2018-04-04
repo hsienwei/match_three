@@ -24,13 +24,14 @@ public class GridState
 public class Gem
 {
   private int m_Color;
-
+  
   public int Color { get { return m_Color; } }
 
   public Gem(int Color)
   {
     m_Color = Color;
   }
+
 }
 
 public class MatchThreeCore
@@ -80,6 +81,8 @@ public class MatchThreeCore
 
   public int GetColor(int Col, int Row)
   {
+    if (m_Grid[Col, Row].m_Gem == null)
+      return -1;
     return m_Grid[Col, Row].m_Gem.Color;
   }
 
@@ -95,7 +98,7 @@ public class MatchThreeCore
 
   public void Update(int TimeUnit)
   {
-    bool IsUnlock = false;
+    /*bool IsUnlock = false;
     for (int i = 0; i < m_Col; ++i)
     {
       for (int j = 0; j < m_Row; ++j)
@@ -116,8 +119,17 @@ public class MatchThreeCore
 
     if (IsUnlock)
     {
-      Scan();
-    }
+      ScanMatch();
+    }*/
+
+    /*ScanMatch();
+    while (m_IsHasMatch)
+    {
+      CleanMatchState();
+      GemDrop();
+      Generate(false);
+      ScanMatch();
+    }*/
   }
 
   public void Generate(bool IsInit = false)
@@ -136,6 +148,7 @@ public class MatchThreeCore
           }
         }
       }
+      return;
     }
 
 
@@ -169,20 +182,19 @@ public class MatchThreeCore
         }
       }
     }
-
+    */
     for (int i = 0; i < m_Col; ++i)
     {
       for (int j = 0; j < m_Row; ++j)
       {
 
-        if (GetColor(i, j) == -1)
+        if (m_Grid[i, j].m_Gem == null)
         {
           //TODO: 檢查上方掉落
           // 先補再產, 兩輪
 
           // 上方沒有的話要產出
-          m_Grid[i, j].Color = m_Rand.Next(0, m_ColorCount);
-          m_Grid[i, j].LockCnt = 1000;
+          m_Grid[i, j].GenGem(m_Rand.Next(0, m_ColorCount));
           if (m_CBGenerate != null)
           {
             m_CBGenerate(i, j, GetColor(i, j));
@@ -190,7 +202,7 @@ public class MatchThreeCore
         }
       }
     }
-    */
+    
   }
 
   public bool Swipe(int Col, int Row, int Direction)
@@ -223,9 +235,9 @@ public class MatchThreeCore
     ChangeGem(m_Grid[Col, Row], m_Grid[TargetCol, TargetRow]);
     ///m_CBMove(TargetCol, TargetRow, Col, Row, MOVE_TYPE_SWITCH);
 
-    //Scan();
+    ScanMatch();
 
-    //if (IsHasClearState())
+    if (IsHasClearState())
     {
       m_CBMove(TargetCol, TargetRow, Col, Row, MOVE_TYPE_SWITCH);
       //m_Grid[Col, Row].LockCnt = 1000;
@@ -234,26 +246,25 @@ public class MatchThreeCore
       //CleanMatchState();
       //Generate(false);
     }
-    /*else
+    else
     {
       m_CBMove(TargetCol, TargetRow, Col, Row, MOVE_TYPE_SWITCHBACK);
 
       ChangeGem(m_Grid[Col, Row], m_Grid[TargetCol, TargetRow]);
 
-      m_Grid[Col, Row].LockCnt = 1000;
-      m_Grid[TargetCol, TargetRow].LockCnt = 1000;
+      //m_Grid[Col, Row].LockCnt = 1000;
+      //m_Grid[TargetCol, TargetRow].LockCnt = 1000;
       return false;
-    }*/
+    }
 
 
     return true;
   }
 
-  public void Scan()
+  public void ScanMatch()
   {
     m_IsHasMatch = false;
-    CleanMatchState();
-
+    
     for (int i = 0; i < m_Col; ++i)
     {
       for (int j = 0; j < m_Row; ++j)
@@ -281,7 +292,8 @@ public class MatchThreeCore
         if (m_Grid[i, j].MatchCount > 0)
         {
           //m_Grid[i, j].Color = -1;
-          m_Grid[i, j].GenGem(1);
+          //m_Grid[i, j].GenGem(1);
+          m_Grid[i, j].m_Gem = null;
           m_Grid[i, j].MatchCount = 0;
           m_Grid[i, j].LockCnt = 0;
           /*if (m_CBLock != null)
@@ -357,6 +369,27 @@ public class MatchThreeCore
     }
 
     return IsMatch;
+  }
+
+  public void GemDrop()
+  {
+    for (int i = 0; i < m_Col; ++i)
+    {
+      int EmptyCnt = 0;
+      for (int j = m_Row - 1; j >= 0; --j)
+      {
+        if (m_Grid[i, j].m_Gem == null)
+        {
+          EmptyCnt++;
+        }
+        else
+        {
+          m_CBLog("i:" + i + " j:" + j);
+          ChangeGem(m_Grid[i, j], m_Grid[i, j + EmptyCnt]);
+          m_CBMove(i, j, i, j + EmptyCnt, MOVE_TYPE_SWITCH);
+        }
+      }
+    }
   }
 
   public void print()

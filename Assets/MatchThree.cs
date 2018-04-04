@@ -53,17 +53,17 @@ public class MatchThree : MonoBehaviour
 
   void Update()
   {
-    //m_MT.Update((int)(Time.deltaTime * 1000));
+    m_MT.Update((int)(Time.deltaTime * 1000));
   }
 
   void _OnGenerate(int Col, int Row, int Color)
   {
-    Vector3 Offset = new Vector3((m_Colume - 1) * 0.5f * m_Size, (m_Row - 1) * 0.5f * m_Size, 0);
+    Vector3 Offset = new Vector3((m_Colume - 1) * 0.5f * m_Size, -(m_Row - 1) * 0.5f * m_Size, 0);
 
     if (m_GemGrid[Col, Row] == null)
     {
       SpriteRenderer GemInst = GameObject.Instantiate(m_GemTmpList[m_MT.GetColor(Col, Row)]);
-      GemInst.transform.position = new Vector3(Col * m_Size, Row * m_Size, 0) - Offset;
+      GemInst.transform.position = new Vector3(Col * m_Size, -Row * m_Size, 0) - Offset;
       m_GemGrid[Col, Row] = GemInst.transform;
       GemInst.transform.localScale = Vector3.zero;
       GemInst.transform.DOScale(1.3f, 0.3f);
@@ -151,7 +151,7 @@ public class MatchThree : MonoBehaviour
   {
     Vector3 WorldPos = GetWorldPos(TouchPos);
     Debug.Log(WorldPos);
-    int Row = (int)(WorldPos.y + m_Size * (m_Row) * 0.5f) / m_Size;
+    int Row = m_Row - 1- (int)(WorldPos.y + m_Size * (m_Row) * 0.5f) / m_Size;
     int Col = (int)(WorldPos.x + m_Size * (m_Colume) * 0.5f) / m_Size;
     Debug.Log("Row " + Row + " Col " + Col);
 
@@ -215,7 +215,26 @@ public class MatchThree : MonoBehaviour
   #region Test_methon
   public void TestClear()
   {
-    m_MT.Scan();
+    m_MT.ScanMatch();
+    m_MT.CleanMatchState();
+  }
+
+  public void TestDrop()
+  {
+    m_MT.GemDrop();
+  }
+
+  public void TestGen()
+  {
+    m_MT.Generate(false);
+  }
+
+  public void TestClearAndGen()
+  {
+    m_MT.ScanMatch();
+    m_MT.CleanMatchState();
+    m_MT.GemDrop();
+    m_MT.Generate(false);
   }
 
   #endregion
@@ -251,12 +270,12 @@ public class MatchThree : MonoBehaviour
     var SwipeDelta = finger.SwipeScreenDelta;
     if (Mathf.Abs(SwipeDelta.x) < Mathf.Abs(SwipeDelta.y))
     {
-      if (SwipeDelta.y > 0)
+      if (SwipeDelta.y < 0)
       {
         // 上
         Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, 0);
       }
-      if (SwipeDelta.y < 0)
+      if (SwipeDelta.y > 0)
       {
         // 下
         Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, 1);
