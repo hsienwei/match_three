@@ -4,14 +4,12 @@ public class GridState
 {
   
   public int MatchCount;
-  public int LockCnt;
   public Gem m_Gem;
 
   public GridState()
   {
     m_Gem = null;
     MatchCount = 0;
-    LockCnt = 0;
   }
 
   public void GenGem(int Color)
@@ -19,17 +17,63 @@ public class GridState
     if (m_Gem == null)
       m_Gem = new Gem(Color);
   }
+
+  public bool IsCanMove()
+  {
+    if (m_Gem == null) return false;
+    return m_Gem.IsCanMove();
+  }
+
+  public void Clear()
+  {
+    m_Gem = null;
+  }
 }
 
 public class Gem
 {
+  enum State
+  {
+    Idle,
+    Moving,
+    Clear,
+  }
+
   private int m_Color;
-  
+  private State m_State = State.Idle;
+  private Action m_Callback;
+
+  private int m_Countdown;
+
   public int Color { get { return m_Color; } }
 
   public Gem(int Color)
   {
     m_Color = Color;
+  }
+
+  public void Update(int DeltaTime)
+  {
+    m_Countdown -= DeltaTime;
+    if (m_Countdown <= 0)
+    {
+      if(m_Callback != null)
+        m_Callback();
+      m_State = State.Idle;
+    }
+  }
+
+  public bool IsCanMove()
+  {
+    return m_State == State.Idle;
+  }
+
+  public void SetCountdown(int Cnt, Action Callback = null)
+  {
+    m_Countdown = Cnt;
+    m_State = State.Moving;
+    m_Callback = null;
+    m_Callback = Callback;
   }
 
 }
@@ -91,13 +135,22 @@ public class MatchThreeCore
     return m_Grid[Col, Row].MatchCount;
   }
 
-  public int GetLockCount(int Col, int Row)
+  /*public int GetLockCount(int Col, int Row)
   {
     return m_Grid[Col, Row].LockCnt;
-  }
+  }*/
 
   public void Update(int TimeUnit)
   {
+    for (int i = 0; i < m_Col; ++i)
+    {
+      for (int j = 0; j < m_Row; ++j)
+      {
+        if(m_Grid[i, j].m_Gem != null)
+          m_Grid[i, j].m_Gem.Update(TimeUnit);
+      }
+    }
+
     /*bool IsUnlock = false;
     for (int i = 0; i < m_Col; ++i)
     {
@@ -130,6 +183,10 @@ public class MatchThreeCore
       Generate(false);
       ScanMatch();
     }*/
+    ScanMatch();
+    CleanMatchState();
+    GemDrop();
+    Generate(false);
   }
 
   public void Generate(bool IsInit = false)
@@ -227,19 +284,26 @@ public class MatchThreeCore
     if (TargetRow < 0) return false;
     if (TargetRow >= m_Row) return false;
 
-    if (m_Grid[Col, Row].LockCnt > 0) return false;
-    if (m_Grid[TargetCol, TargetRow].LockCnt > 0) return false;
+    //if (m_Grid[Col, Row].LockCnt > 0) return false;
+    if(!m_Grid[Col, Row].IsCanMove()) return false;
+    //if (m_Grid[TargetCol, TargetRow].LockCnt > 0) return false;
+    if (!m_Grid[TargetCol, TargetRow].IsCanMove()) return false;
 
     int TargetColor = GetColor(TargetCol, TargetRow);
 
     ChangeGem(m_Grid[Col, Row], m_Grid[TargetCol, TargetRow]);
     ///m_CBMove(TargetCol, TargetRow, Col, Row, MOVE_TYPE_SWITCH);
 
+    
+
     ScanMatch();
 
     if (IsHasClearState())
     {
       m_CBMove(TargetCol, TargetRow, Col, Row, MOVE_TYPE_SWITCH);
+
+      m_Grid[Col, Row].m_Gem.SetCountdown(500);
+      m_Grid[TargetCol, TargetRow].m_Gem.SetCountdown(500);
       //m_Grid[Col, Row].LockCnt = 1000;
       //m_Grid[TargetCol, TargetRow].LockCnt = 1000;
 
@@ -252,11 +316,16 @@ public class MatchThreeCore
 
       ChangeGem(m_Grid[Col, Row], m_Grid[TargetCol, TargetRow]);
 
+      m_Grid[Col, Row].m_Gem.SetCountdown(500);
+      m_Grid[TargetCol, TargetRow].m_Gem.SetCountdown(500);
+      //m_Grid[Col, Row].m_Gem.SetCountdown(500);
+      //m_Grid[TargetCol, TargetRow].m_Gem.SetCountdown(500);
+
       //m_Grid[Col, Row].LockCnt = 1000;
       //m_Grid[TargetCol, TargetRow].LockCnt = 1000;
       return false;
     }
-
+    CleanMatchState(false);
 
     return true;
   }
@@ -282,7 +351,7 @@ public class MatchThreeCore
     return m_IsHasMatch;
   }
 
-  public void CleanMatchState()
+  public void CleanMatchState(bool IsRemoveGem = true)
   {
     for (int i = 0; i < m_Col; ++i)
     {
@@ -293,29 +362,33 @@ public class MatchThreeCore
         {
           //m_Grid[i, j].Color = -1;
           //m_Grid[i, j].GenGem(1);
-          m_Grid[i, j].m_Gem = null;
+          if (IsRemoveGem)
+          {
+            m_Grid[i, j].m_Gem.SetCountdown(500, m_Grid[i, j].Clear);
+            if (m_CBClear != null)
+            {
+              m_CBClear(i, j);
+            }
+          }
           m_Grid[i, j].MatchCount = 0;
-          m_Grid[i, j].LockCnt = 0;
+          //m_Grid[i, j].LockCnt = 0;
           /*if (m_CBLock != null)
           {
             m_CBLock(i, j, m_Grid[i, j].LockCnt);
           }*/
-          if (m_CBClear != null)
-          {
-            m_CBClear(i, j);
-          }
         }
 
       }
     }
   }
 
+
   bool CheckMatch(int Col, int Row)
   {
     int CurrColor = GetColor(Col, Row);
     if (CurrColor == -1) return false;
 
-    if (m_Grid[Col, Row].LockCnt > 0)
+    if (!m_Grid[Col, Row].IsCanMove() )
       return false;
 
     bool IsMatch = false;
@@ -329,26 +402,26 @@ public class MatchThreeCore
     int LCol = Col - 1, LRow = Row;
     if (LCol >= 0)
     {
-      if (m_Grid[LCol, LRow].LockCnt == 0)
+      if (m_Grid[LCol, LRow].IsCanMove())
         LSame = (CurrColor == GetColor(LCol, LRow));
     }
     int RCol = Col + 1, RRow = Row;
     if (RCol < m_Col)
     {
-      if (m_Grid[RCol, RRow].LockCnt == 0)
+      if (m_Grid[RCol, RRow].IsCanMove())
         RSame = (CurrColor == GetColor(RCol, RRow));
     }
 
     int UCol = Col, URow = Row - 1;
     if (URow >= 0)
     {
-      if (m_Grid[UCol, URow].LockCnt == 0)
+      if (m_Grid[UCol, URow].IsCanMove())
         USame = (CurrColor == GetColor(UCol, URow));
     }
     int DCol = Col, DRow = Row + 1;
     if (DRow < m_Row)
     {
-      if (m_Grid[DCol, DRow].LockCnt == 0)
+      if (m_Grid[DCol, DRow].IsCanMove())
         DSame = (CurrColor == GetColor(DCol, DRow));
     }
 
@@ -384,9 +457,16 @@ public class MatchThreeCore
         }
         else
         {
-          m_CBLog("i:" + i + " j:" + j);
-          ChangeGem(m_Grid[i, j], m_Grid[i, j + EmptyCnt]);
-          m_CBMove(i, j, i, j + EmptyCnt, MOVE_TYPE_SWITCH);
+          if (m_Grid[i, j + EmptyCnt].m_Gem == null ||
+            m_Grid[i, j + EmptyCnt].m_Gem.IsCanMove())
+          {
+            ChangeGem(m_Grid[i, j], m_Grid[i, j + EmptyCnt]);
+            m_CBMove(i, j, i, j + EmptyCnt, MOVE_TYPE_SWITCH);
+          }
+          else
+          {
+            break;
+          }
         }
       }
     }
