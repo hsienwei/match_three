@@ -26,7 +26,8 @@ public class GridState
 
   public void Clear()
   {
-    m_Gem = null;
+    //m_Gem = null;
+    m_Gem.SetClear();
   }
 }
 
@@ -57,9 +58,10 @@ public class Gem
     m_Countdown -= DeltaTime;
     if (m_Countdown <= 0)
     {
-      if(m_Callback != null)
-        m_Callback();
       m_State = State.Idle;
+      if (m_Callback != null)
+        m_Callback();
+      
     }
   }
 
@@ -76,6 +78,16 @@ public class Gem
     m_Callback = Callback;
   }
 
+
+  public void SetClear()
+  {
+    m_State = State.Clear;
+  }
+
+  public bool IsClear()
+  {
+    return m_State == State.Clear;
+  }
 }
 
 public class MatchThreeCore
@@ -146,8 +158,13 @@ public class MatchThreeCore
     {
       for (int j = 0; j < m_Row; ++j)
       {
-        if(m_Grid[i, j].m_Gem != null)
+        if (m_Grid[i, j].m_Gem != null)
+        {
           m_Grid[i, j].m_Gem.Update(TimeUnit);
+          if (m_Grid[i, j].m_Gem.IsClear())
+            m_Grid[i, j].m_Gem = null;
+        }
+      
       }
     }
 
@@ -201,6 +218,7 @@ public class MatchThreeCore
           {
             m_Grid[i, j] = new GridState();
             m_Grid[i, j].GenGem(m_Rand.Next(0, m_ColorCount));
+            m_Grid[i, j].m_Gem.SetCountdown(500);
             m_CBGenerate(i, j, GetColor(i, j));
           }
         }
@@ -252,6 +270,7 @@ public class MatchThreeCore
 
           // 上方沒有的話要產出
           m_Grid[i, j].GenGem(m_Rand.Next(0, m_ColorCount));
+          m_Grid[i, j].m_Gem.SetCountdown(500);
           if (m_CBGenerate != null)
           {
             m_CBGenerate(i, j, GetColor(i, j));
@@ -294,9 +313,12 @@ public class MatchThreeCore
     ChangeGem(m_Grid[Col, Row], m_Grid[TargetCol, TargetRow]);
     ///m_CBMove(TargetCol, TargetRow, Col, Row, MOVE_TYPE_SWITCH);
 
-    
 
-    ScanMatch();
+    m_CBMove(TargetCol, TargetRow, Col, Row, MOVE_TYPE_SWITCH);
+
+    m_Grid[Col, Row].m_Gem.SetCountdown(500);
+    m_Grid[TargetCol, TargetRow].m_Gem.SetCountdown(500);
+    /*ScanMatch();
 
     if (IsHasClearState())
     {
@@ -326,7 +348,7 @@ public class MatchThreeCore
       return false;
     }
     CleanMatchState(false);
-
+*/
     return true;
   }
 
@@ -457,10 +479,16 @@ public class MatchThreeCore
         }
         else
         {
+          if (EmptyCnt == 0) 
+            continue;
           if (m_Grid[i, j + EmptyCnt].m_Gem == null ||
             m_Grid[i, j + EmptyCnt].m_Gem.IsCanMove())
           {
             ChangeGem(m_Grid[i, j], m_Grid[i, j + EmptyCnt]);
+            if(m_Grid[i, j].m_Gem != null)    
+              m_Grid[i, j].m_Gem.SetCountdown(500);
+            if (m_Grid[i, j + EmptyCnt].m_Gem != null)   
+              m_Grid[i, j + EmptyCnt].m_Gem.SetCountdown(500);
             m_CBMove(i, j, i, j + EmptyCnt, MOVE_TYPE_SWITCH);
           }
           else
