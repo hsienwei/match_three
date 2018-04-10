@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 public class GridState
 {
@@ -92,6 +93,18 @@ public class Gem
 
 public class MatchThreeCore
 {
+
+  class SwipeRecord
+  {
+    public int m_x1, m_y1, m_x2, m_y2;
+    public SwipeRecord(int x1, int y1, int x2, int y2)
+    {
+      m_x1 = x1;
+      m_y1 = y1;
+      m_x2 = x2;
+      m_y2 = y2;
+    }
+  };
   public static readonly int MOVE_TYPE_MOVE = 1;
   public static readonly int MOVE_TYPE_SWITCH = 2;
   public static readonly int MOVE_TYPE_SWITCHBACK = 3;
@@ -115,6 +128,8 @@ public class MatchThreeCore
 
   private Random m_Rand;
 
+  private List<SwipeRecord> m_SwipeRecs ;
+
   public MatchThreeCore(int Col, int Row, int ColorCount)
   {
     m_Grid = new GridState[Col, Row];
@@ -123,6 +138,8 @@ public class MatchThreeCore
     m_ColorCount = ColorCount;
 
     m_Rand = new Random();
+
+    m_SwipeRecs = new List<SwipeRecord>();
   }
 
   int Col { get { return m_Col; } }
@@ -154,6 +171,24 @@ public class MatchThreeCore
 
   public void Update(int TimeUnit)
   {
+
+    for(int i=0; i< m_SwipeRecs.Count; ++i)
+    {
+
+      var Rec = m_SwipeRecs[i];
+
+      ChangeGem(m_Grid[Rec.m_x1, Rec.m_y1], m_Grid[Rec.m_x2, Rec.m_y2]);
+      ///m_CBMove(TargetCol, TargetRow, Col, Row, MOVE_TYPE_SWITCH);
+
+
+      m_CBMove(Rec.m_x2, Rec.m_y2, Rec.m_x1, Rec.m_y1, MOVE_TYPE_SWITCH);
+
+      m_Grid[Rec.m_x1, Rec.m_y1].m_Gem.SetCountdown(500);
+      m_Grid[Rec.m_x2, Rec.m_y2].m_Gem.SetCountdown(500);
+    }
+    m_SwipeRecs.Clear();
+
+
     for (int i = 0; i < m_Col; ++i)
     {
       for (int j = 0; j < m_Row; ++j)
@@ -308,6 +343,9 @@ public class MatchThreeCore
     //if (m_Grid[TargetCol, TargetRow].LockCnt > 0) return false;
     if (!m_Grid[TargetCol, TargetRow].IsCanMove()) return false;
 
+
+    m_SwipeRecs.Add(new SwipeRecord(Col, Row, TargetCol, TargetRow));
+    return true;
     int TargetColor = GetColor(TargetCol, TargetRow);
 
     ChangeGem(m_Grid[Col, Row], m_Grid[TargetCol, TargetRow]);
@@ -479,8 +517,12 @@ public class MatchThreeCore
         }
         else
         {
+          if (!m_Grid[i, j].m_Gem.IsCanMove())
+            EmptyCnt = 0;
+
           if (EmptyCnt == 0) 
             continue;
+
           if (m_Grid[i, j + EmptyCnt].m_Gem == null ||
             m_Grid[i, j + EmptyCnt].m_Gem.IsCanMove())
           {
