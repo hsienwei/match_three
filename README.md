@@ -11,3 +11,7 @@ https://www.assetstore.unity3d.com/en/#!/content/17646
 
 Demo:
 http://hsienwei.github.io/pages/match_three/
+
+預計工作:
+- 將移動資訊改為物件進主迴圈判定
+- 加入沒有珠子可消的判定
