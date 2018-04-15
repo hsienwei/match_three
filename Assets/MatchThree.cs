@@ -34,12 +34,13 @@ public class MatchThree : MonoBehaviour
       Time.timeScale = float.Parse(m_TextTimeScale.text);
     });
 
-    m_MT = new MatchThreeCore(m_Colume, m_Row, 6);
+    m_MT = new MatchThreeCore(m_Colume, m_Row, 7);
     m_MT.m_CBGenerate = _OnGenerate;
     m_MT.m_CBClear = _OnClear;
     m_MT.m_CBMove = _OnMove;
     m_MT.m_CBLock = _OnLock;
     m_MT.m_CBLog = null;// Debug.Log;
+    m_MT.m_CBLog2 =  Debug.Log;
 
     m_GemGrid = new Transform[m_Colume, m_Row];
     m_GemPos = new Vector3[m_Colume, m_Row];

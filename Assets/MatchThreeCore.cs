@@ -104,7 +104,38 @@ public class MatchThreeCore
       m_x2 = x2;
       m_y2 = y2;
     }
+
+    
   };
+
+  class MoveRecord
+  {
+    private static readonly string FormatStr = "[{0}, {1} : {2}]";
+
+    int m_x1, m_y1;
+    Direction m_Direction;
+    public MoveRecord(int x1, int y1, Direction Direction)
+    {
+      m_x1 = x1;
+      m_y1 = y1;
+      m_Direction = Direction;
+    }
+
+    public override string ToString()
+    {
+      return string.Format(FormatStr, m_x1, m_y1, m_Direction);
+    }
+  };
+
+  enum Direction
+  { 
+    DOWN,
+    UP,
+    LEFT,
+    RIGHT,
+  };
+
+
   public static readonly int MOVE_TYPE_MOVE = 1;
   public static readonly int MOVE_TYPE_SWITCH = 2;
   public static readonly int MOVE_TYPE_SWITCHBACK = 3;
@@ -120,6 +151,7 @@ public class MatchThreeCore
   public OnMove m_CBMove;
   public OnLock m_CBLock;
   public OnLog m_CBLog;
+  public OnLog m_CBLog2;
 
   private GridState[,] m_Grid;
   private int m_Row, m_Col;
@@ -129,6 +161,7 @@ public class MatchThreeCore
   private Random m_Rand;
 
   private List<SwipeRecord> m_SwipeRecs ;
+  private List<MoveRecord> m_PossibleMove;
 
   public MatchThreeCore(int Col, int Row, int ColorCount)
   {
@@ -140,6 +173,7 @@ public class MatchThreeCore
     m_Rand = new Random();
 
     m_SwipeRecs = new List<SwipeRecord>();
+    m_PossibleMove = new List<MoveRecord>();
   }
 
   int Col { get { return m_Col; } }
@@ -154,6 +188,8 @@ public class MatchThreeCore
 
   public int GetColor(int Col, int Row)
   {
+    if (Col < 0 || Col >= m_Col) return -1;
+    if (Row < 0 || Row >= m_Row) return -1;
     if (m_Grid[Col, Row].m_Gem == null)
       return -1;
     return m_Grid[Col, Row].m_Gem.Color;
@@ -203,42 +239,166 @@ public class MatchThreeCore
       }
     }
 
-    /*bool IsUnlock = false;
-    for (int i = 0; i < m_Col; ++i)
-    {
-      for (int j = 0; j < m_Row; ++j)
-      {
-        if (m_Grid[i, j].LockCnt > 0)
-        {
-          m_Grid[i, j].LockCnt -= TimeUnit;
-          if (m_Grid[i, j].LockCnt < 0)
-          {
-            m_Grid[i, j].LockCnt = 0;
-            IsUnlock = true;
-          }
-
-          //if (m_CBLock != null) m_CBLock(i, j, m_Grid[i, j].LockCnt);
-        }
-      }
-    }
-
-    if (IsUnlock)
-    {
-      ScanMatch();
-    }*/
-
-    /*ScanMatch();
-    while (m_IsHasMatch)
-    {
-      CleanMatchState();
-      GemDrop();
-      Generate(false);
-      ScanMatch();
-    }*/
     ScanMatch();
     CleanMatchState();
     GemDrop();
     Generate(false);
+    ScanMatchPossible();
+    
+  }
+
+  void ScanMatchPossible()
+  {
+    m_PossibleMove.Clear();
+    for (int i = 0; i < m_Col; ++i)
+    {
+      for (int j = 0; j < m_Row; ++j)
+      {
+        CheckMatchPossible(i, j);
+      }
+    }
+
+    System.Text.StringBuilder m_TempBuilder = new System.Text.StringBuilder();
+    m_TempBuilder.Remove(0, m_TempBuilder.Length);
+    for (int i=0; i< m_PossibleMove.Count; ++i)
+    {
+      m_TempBuilder.Append(m_PossibleMove[i]);
+    }
+    m_CBLog2(m_TempBuilder.ToString());
+  }
+
+  int CheckMatchPossible(int Col, int Row)
+  {
+    //  上移　　　　左移　     右移      下移
+    // ...|...   .......   .......   .......
+    // ...|...   ..|....   ....|..   .......
+    // .--+--.   ..|....   ....|..   .......
+    // ...O...   --+O...   ...O+--   ...O...
+    // .......   ..|....   ....|..   .--+--.
+    // .......   ..|....   ....|..   ...|...
+    // .......   .......   .......   ...|...
+
+    if (!m_Grid[Col, Row].IsCanMove())
+      return 0;
+
+    int CurrColor = GetColor(Col, Row);
+    if (CurrColor == -1) return 0;
+
+    int Cnt = 0;
+
+    do
+    {
+      // 左移左
+      if (CurrColor == GetColor(Col - 2, Row) && CurrColor == GetColor(Col - 3, Row))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.LEFT));
+        break;
+      }
+      // 左移上
+      if (CurrColor == GetColor(Col - 1, Row - 1) && CurrColor == GetColor(Col - 1, Row - 2))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.LEFT));
+        break;
+      }
+      // 左移下
+      if (CurrColor == GetColor(Col - 1, Row + 1) && CurrColor == GetColor(Col - 1, Row + 2))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.LEFT));
+        break;
+      }
+      // 左移中
+      if (CurrColor == GetColor(Col - 1, Row + 1) && CurrColor == GetColor(Col - 1, Row - 1))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.LEFT));
+        break;
+      }
+    } while (false);
+
+    do
+    {
+      // 右移右
+      if (CurrColor == GetColor(Col + 2, Row) && CurrColor == GetColor(Col + 3, Row))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.RIGHT));
+        break;
+      }
+      // 右移上
+      if (CurrColor == GetColor(Col + 1, Row - 1) && CurrColor == GetColor(Col + 1, Row - 2))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.RIGHT));
+        break;
+      }
+      // 右移下
+      if (CurrColor == GetColor(Col + 1, Row + 1) && CurrColor == GetColor(Col + 1, Row + 2))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.RIGHT));
+        break;
+      }
+      // 右移中
+      if (CurrColor == GetColor(Col + 1, Row + 1) && CurrColor == GetColor(Col + 1, Row - 1))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.RIGHT));
+        break;
+      }
+    } while (false);
+
+    do
+    {
+      // 上移上
+      if (CurrColor == GetColor(Col, Row - 2) && CurrColor == GetColor(Col, Row - 3))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.UP));
+        break;
+      }
+      // 上移左
+      if (CurrColor == GetColor(Col - 1, Row - 1) && CurrColor == GetColor(Col - 2, Row - 1))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.UP));
+        break;
+      }
+      // 上移右
+      if (CurrColor == GetColor(Col + 1, Row - 1) && CurrColor == GetColor(Col + 2, Row - 1))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.UP));
+        break;
+      }
+      // 上移中
+      if (CurrColor == GetColor(Col + 1, Row - 1) && CurrColor == GetColor(Col - 1, Row - 1))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.UP));
+        break;
+      }
+    } while (false);
+
+    do
+    {
+      // 下移下
+      if (CurrColor == GetColor(Col, Row + 2) && CurrColor == GetColor(Col, Row + 3))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.DOWN));
+        break;
+      }
+      // 下移左
+      if (CurrColor == GetColor(Col - 1, Row + 1) && CurrColor == GetColor(Col - 2, Row + 1))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.DOWN));
+        break;
+      }
+      // 下移右
+      if (CurrColor == GetColor(Col + 1, Row + 1) && CurrColor == GetColor(Col + 2, Row + 1))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.DOWN));
+        break;
+      }
+      // 下移中
+      if (CurrColor == GetColor(Col + 1, Row + 1) && CurrColor == GetColor(Col - 1, Row + 1))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.DOWN));
+        break;
+      }
+    } while (false);
+
+    return Cnt;
   }
 
   public void Generate(bool IsInit = false)
@@ -343,50 +503,8 @@ public class MatchThreeCore
     //if (m_Grid[TargetCol, TargetRow].LockCnt > 0) return false;
     if (!m_Grid[TargetCol, TargetRow].IsCanMove()) return false;
 
-
     m_SwipeRecs.Add(new SwipeRecord(Col, Row, TargetCol, TargetRow));
-    return true;
-    int TargetColor = GetColor(TargetCol, TargetRow);
-
-    ChangeGem(m_Grid[Col, Row], m_Grid[TargetCol, TargetRow]);
-    ///m_CBMove(TargetCol, TargetRow, Col, Row, MOVE_TYPE_SWITCH);
-
-
-    m_CBMove(TargetCol, TargetRow, Col, Row, MOVE_TYPE_SWITCH);
-
-    m_Grid[Col, Row].m_Gem.SetCountdown(500);
-    m_Grid[TargetCol, TargetRow].m_Gem.SetCountdown(500);
-    /*ScanMatch();
-
-    if (IsHasClearState())
-    {
-      m_CBMove(TargetCol, TargetRow, Col, Row, MOVE_TYPE_SWITCH);
-
-      m_Grid[Col, Row].m_Gem.SetCountdown(500);
-      m_Grid[TargetCol, TargetRow].m_Gem.SetCountdown(500);
-      //m_Grid[Col, Row].LockCnt = 1000;
-      //m_Grid[TargetCol, TargetRow].LockCnt = 1000;
-
-      //CleanMatchState();
-      //Generate(false);
-    }
-    else
-    {
-      m_CBMove(TargetCol, TargetRow, Col, Row, MOVE_TYPE_SWITCHBACK);
-
-      ChangeGem(m_Grid[Col, Row], m_Grid[TargetCol, TargetRow]);
-
-      m_Grid[Col, Row].m_Gem.SetCountdown(500);
-      m_Grid[TargetCol, TargetRow].m_Gem.SetCountdown(500);
-      //m_Grid[Col, Row].m_Gem.SetCountdown(500);
-      //m_Grid[TargetCol, TargetRow].m_Gem.SetCountdown(500);
-
-      //m_Grid[Col, Row].LockCnt = 1000;
-      //m_Grid[TargetCol, TargetRow].LockCnt = 1000;
-      return false;
-    }
-    CleanMatchState(false);
-*/
+    
     return true;
   }
 
@@ -445,11 +563,13 @@ public class MatchThreeCore
 
   bool CheckMatch(int Col, int Row)
   {
+    if (!m_Grid[Col, Row].IsCanMove())
+      return false;
+
     int CurrColor = GetColor(Col, Row);
     if (CurrColor == -1) return false;
 
-    if (!m_Grid[Col, Row].IsCanMove() )
-      return false;
+    
 
     bool IsMatch = false;
 
