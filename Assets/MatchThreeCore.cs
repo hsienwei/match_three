@@ -207,24 +207,20 @@ public class MatchThreeCore
 
   public void Update(int TimeUnit)
   {
-
+    // swipe行為.
     for(int i=0; i< m_SwipeRecs.Count; ++i)
     {
-
       var Rec = m_SwipeRecs[i];
 
       ChangeGem(m_Grid[Rec.m_x1, Rec.m_y1], m_Grid[Rec.m_x2, Rec.m_y2]);
-      ///m_CBMove(TargetCol, TargetRow, Col, Row, MOVE_TYPE_SWITCH);
-
-
       m_CBMove(Rec.m_x2, Rec.m_y2, Rec.m_x1, Rec.m_y1, MOVE_TYPE_SWITCH);
 
-      m_Grid[Rec.m_x1, Rec.m_y1].m_Gem.SetCountdown(500);
-      m_Grid[Rec.m_x2, Rec.m_y2].m_Gem.SetCountdown(500);
+      m_Grid[Rec.m_x1, Rec.m_y1].m_Gem.SetCountdown(300);
+      m_Grid[Rec.m_x2, Rec.m_y2].m_Gem.SetCountdown(300);
     }
     m_SwipeRecs.Clear();
 
-
+    // 更新珠子, 清除已消除資料.
     for (int i = 0; i < m_Col; ++i)
     {
       for (int j = 0; j < m_Row; ++j)
@@ -244,7 +240,23 @@ public class MatchThreeCore
     GemDrop();
     Generate(false);
     ScanMatchPossible();
-    
+    CheckReset();
+  }
+
+  void CheckReset()
+  {
+    if (m_SwipeRecs.Count > 0) return;
+    if (m_PossibleMove.Count > 0) return;
+    for (int i = 0; i < m_Col; ++i)
+    {
+      for (int j = 0; j < m_Row; ++j)
+      {
+        if (!m_Grid[i, j].IsCanMove()) return;
+        if (m_Grid[i, j].MatchCount >0) return;
+      }
+    }
+
+    Reset();
   }
 
   void ScanMatchPossible()
@@ -413,7 +425,7 @@ public class MatchThreeCore
           {
             m_Grid[i, j] = new GridState();
             m_Grid[i, j].GenGem(m_Rand.Next(0, m_ColorCount));
-            m_Grid[i, j].m_Gem.SetCountdown(500);
+            m_Grid[i, j].m_Gem.SetCountdown(300);
             m_CBGenerate(i, j, GetColor(i, j));
           }
         }
@@ -465,7 +477,7 @@ public class MatchThreeCore
 
           // 上方沒有的話要產出
           m_Grid[i, j].GenGem(m_Rand.Next(0, m_ColorCount));
-          m_Grid[i, j].m_Gem.SetCountdown(500);
+          m_Grid[i, j].m_Gem.SetCountdown(300);
           if (m_CBGenerate != null)
           {
             m_CBGenerate(i, j, GetColor(i, j));
@@ -538,28 +550,20 @@ public class MatchThreeCore
         // TODO:產出特殊寶石
         if (m_Grid[i, j].MatchCount > 0)
         {
-          //m_Grid[i, j].Color = -1;
-          //m_Grid[i, j].GenGem(1);
           if (IsRemoveGem)
           {
-            m_Grid[i, j].m_Gem.SetCountdown(500, m_Grid[i, j].Clear);
+            m_Grid[i, j].m_Gem.SetCountdown(300, m_Grid[i, j].Clear);
             if (m_CBClear != null)
             {
               m_CBClear(i, j);
             }
           }
           m_Grid[i, j].MatchCount = 0;
-          //m_Grid[i, j].LockCnt = 0;
-          /*if (m_CBLock != null)
-          {
-            m_CBLock(i, j, m_Grid[i, j].LockCnt);
-          }*/
         }
 
       }
     }
   }
-
 
   bool CheckMatch(int Col, int Row)
   {
@@ -648,9 +652,9 @@ public class MatchThreeCore
           {
             ChangeGem(m_Grid[i, j], m_Grid[i, j + EmptyCnt]);
             if(m_Grid[i, j].m_Gem != null)    
-              m_Grid[i, j].m_Gem.SetCountdown(500);
+              m_Grid[i, j].m_Gem.SetCountdown(300);
             if (m_Grid[i, j + EmptyCnt].m_Gem != null)   
-              m_Grid[i, j + EmptyCnt].m_Gem.SetCountdown(500);
+              m_Grid[i, j + EmptyCnt].m_Gem.SetCountdown(300);
             m_CBMove(i, j, i, j + EmptyCnt, MOVE_TYPE_SWITCH);
           }
           else
@@ -658,6 +662,22 @@ public class MatchThreeCore
             break;
           }
         }
+      }
+    }
+  }
+
+  public void Reset()
+  {
+    for (int i = 0; i < m_Col; ++i)
+    {
+      for (int j = 0; j < m_Row; ++j)
+      {
+        m_Grid[i, j].m_Gem.SetCountdown(300, m_Grid[i, j].Clear);
+        if (m_CBClear != null)
+        {
+          m_CBClear(i, j);
+        }
+        m_Grid[i, j].MatchCount = 0;
       }
     }
   }

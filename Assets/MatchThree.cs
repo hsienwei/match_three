@@ -27,13 +27,6 @@ public class MatchThree : MonoBehaviour
   // Use this for initialization
   void Start()
   {
-
-    m_TextTimeScale.text = "" + Time.timeScale;
-    m_BtnTimeScaleSet.onClick.AddListener(() =>
-    {
-      Time.timeScale = float.Parse(m_TextTimeScale.text);
-    });
-
     m_MT = new MatchThreeCore(m_Colume, m_Row, 7);
     m_MT.m_CBGenerate = _OnGenerate;
     m_MT.m_CBClear = _OnClear;
@@ -67,7 +60,7 @@ public class MatchThree : MonoBehaviour
       GemInst.transform.position = new Vector3(Col * m_Size, -Row * m_Size, 0) - Offset;
       m_GemGrid[Col, Row] = GemInst.transform;
       GemInst.transform.localScale = Vector3.zero;
-      GemInst.transform.DOScale(1.3f, 0.3f);
+      GemInst.transform.DOScale(1.3f, 0.2f);
       m_GemPos[Col, Row] = GemInst.transform.position;
     }
 
@@ -77,7 +70,7 @@ public class MatchThree : MonoBehaviour
   {
     var Gem = m_GemGrid[Col, Row].transform;
     m_GemGrid[Col, Row] = null;
-    Gem.DOScale(0, 0.3f).OnComplete(() =>
+    Gem.DOScale(0, 0.2f).OnComplete(() =>
     {
       GameObject.Destroy(Gem.gameObject);
     });
@@ -92,23 +85,23 @@ public class MatchThree : MonoBehaviour
 
     if (MoveType == MatchThreeCore.MOVE_TYPE_MOVE)
     {
-      GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.5f );
+      GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.3f );
 
       m_GemGrid[Col, Row] =  null;
       m_GemGrid[TargetCol, TargetRow] = GemA;
     }
     else if (MoveType == MatchThreeCore.MOVE_TYPE_SWITCH)
     {
-      GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.5f );
-      GemB.DOMove(m_GemPos[Col, Row], 0.5f );
+      GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.3f );
+      GemB.DOMove(m_GemPos[Col, Row], 0.3f );
 
       m_GemGrid[Col, Row] = GemB;
       m_GemGrid[TargetCol, TargetRow] = GemA;
     }
     else if (MoveType == MatchThreeCore.MOVE_TYPE_SWITCHBACK)
     {
-      GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.25f ).SetLoops(2, LoopType.Yoyo);
-      GemB.DOMove(m_GemPos[Col, Row], 0.25f ).SetLoops(2, LoopType.Yoyo);
+      GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.15f ).SetLoops(2, LoopType.Yoyo);
+      GemB.DOMove(m_GemPos[Col, Row], 0.15f ).SetLoops(2, LoopType.Yoyo);
     }
   }
 
@@ -116,37 +109,6 @@ public class MatchThree : MonoBehaviour
   {
 
   }
-
-  /*public void Generate()
-  {
-
-    Sequence Seq = DOTween.Sequence();
-    Seq.AppendInterval(0.3f);
-    Seq.AppendCallback(() =>
-    {
-
-      m_MT.Scan();
-      if (m_MT.IsHasClearState())
-      {
-        Clear();
-      }
-    });
-
-  }
-
-  //
-  // for test.
-  //
-
-  public void print()
-  {
-    m_MT.print();
-  }
-
-  public void printClearState()
-  {
-    m_MT.printClearState();
-  }*/
 
   Vector2 GetGemPos(Vector2 TouchPos)
   {
@@ -175,42 +137,12 @@ public class MatchThree : MonoBehaviour
   {
     bool IsSwipeSuccess = m_MT.Swipe(Col, Row, Direction);
 
-    /*if (IsSwipeSuccess)
-    {
-      Sequence Seq = DOTween.Sequence();
-      Seq.AppendInterval(0.3f);
-      Seq.AppendCallback(() =>
-      {
 
-        Clear();
-
-      });
-    }
-    
-  */
   }
 
-  public void Clear()
+  public void Reset()
   {
-    /*if (!m_MT.IsHasClearState()) return;
-
-    Sequence Seq = DOTween.Sequence();
-    Seq.AppendInterval(0.3f);
-    Seq.AppendCallback(() =>
-    {
-      m_MT.CleanMatchState();
-      m_MT.Generate(false);
-      Generate();
-
-    });
-
-  */
-  }
-
-  public void Scan()
-  {
-    //m_MT.Scan();
-    //Clear();
+    m_MT.Reset();
   }
 
   #region Test_methon
