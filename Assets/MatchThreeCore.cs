@@ -93,6 +93,13 @@ public class Gem
 
 public class MatchThreeCore
 {
+  public struct GridPos
+  {
+    public int x;
+    public int y;
+    public GridPos(int vx, int vy) 
+    { x = vx; y = vy; }
+  }
 
   class SwipeRecord
   {
@@ -127,6 +134,44 @@ public class MatchThreeCore
     }
   };
 
+  class MatchRecord{
+
+    public int m_x1, m_y1, m_x2, m_y2;
+    public MatchRecord(int x1, int y1, int x2, int y2)
+    {
+      m_x1 = x1;
+      m_y1 = y1;
+      m_x2 = x2;
+      m_y2 = y2;
+    
+    }
+
+    public bool IsInside(int x, int y)
+    {
+      return x >= m_x1 && x <= m_x2 && y >= m_y1 && y <= m_y2;
+    }
+
+    public bool IsVertical()
+    {
+      return m_y1 == m_y2;
+    }
+
+    public List<GridPos> GetGridPos()
+    {
+      List<GridPos> List = new List<GridPos>();
+            
+      for (int i = m_x1; i <= m_x2; ++i)
+      {
+        for (int j = m_y1; j <= m_y2; ++j)
+        {
+          List.Add(new GridPos(i, j) );
+        }
+      }
+      return List;
+    }
+
+  };
+
   enum Direction
   { 
     DOWN,
@@ -135,6 +180,9 @@ public class MatchThreeCore
     RIGHT,
   };
 
+  public int GridPosToIdx(GridPos g) { return g.x + g.y * m_Col; }
+  public int GridPosToIdx(int x, int y) { return x + y * m_Col;  }
+  public void GridIdxToPos(int idx, ref int x, ref int y) { x =  idx % m_Col;  y = idx / m_Col; }
 
   public static readonly int MOVE_TYPE_MOVE = 1;
   public static readonly int MOVE_TYPE_SWITCH = 2;
@@ -162,6 +210,7 @@ public class MatchThreeCore
 
   private List<SwipeRecord> m_SwipeRecs ;
   private List<MoveRecord> m_PossibleMove;
+  private List<MatchRecord> m_MatchRecs;
 
   public MatchThreeCore(int Col, int Row, int ColorCount)
   {
@@ -174,6 +223,7 @@ public class MatchThreeCore
 
     m_SwipeRecs = new List<SwipeRecord>();
     m_PossibleMove = new List<MoveRecord>();
+    m_MatchRecs = new List<MatchRecord>();
   }
 
   int Col { get { return m_Col; } }
@@ -200,14 +250,9 @@ public class MatchThreeCore
     return m_Grid[Col, Row].MatchCount;
   }
 
-  /*public int GetLockCount(int Col, int Row)
-  {
-    return m_Grid[Col, Row].LockCnt;
-  }*/
-
   public void Update(int TimeUnit)
   {
-    // swipe行為.
+    // 執行swipe行為.
     for(int i=0; i< m_SwipeRecs.Count; ++i)
     {
       var Rec = m_SwipeRecs[i];
@@ -522,8 +567,10 @@ public class MatchThreeCore
 
   public void ScanMatch()
   {
+    test();
     m_IsHasMatch = false;
-    
+    m_MatchRecs.Clear();
+
     for (int i = 0; i < m_Col; ++i)
     {
       for (int j = 0; j < m_Row; ++j)
@@ -541,6 +588,77 @@ public class MatchThreeCore
     return m_IsHasMatch;
   }
 
+
+  
+  class MatchGrid : IComparable<MatchGrid>
+  {
+    int m_x;
+    int m_y;
+
+    int m_v;
+    int m_h;
+
+    List<MatchRecord> Recs;
+    public MatchGrid(int x, int y)
+    {
+      m_x = x; m_y = y;
+      Recs = new List<MatchRecord>();
+    }
+
+    public void AddMatchRecord(MatchRecord Rec)
+    {
+      Recs.Add(Rec);
+      if (Rec.IsVertical()) 
+        m_v++;
+      else 
+        m_h++;
+    }
+
+    public int CompareTo(MatchGrid other)
+    {
+      if (other == null) return -1;
+      return -Recs.Count.CompareTo(other.Recs.Count);
+    }
+
+    public override string ToString()
+    {
+      return "" + m_x + "," + m_y + "," + m_v + "," + m_h;
+    }
+  };
+
+  void test()
+  {
+    m_CBLog2("====================");
+    // 建立格子的索引
+    Dictionary<int, MatchGrid> List = new Dictionary<int, MatchGrid>();
+    for (int i = 0; i < m_MatchRecs.Count; ++i)
+    {
+      var Grids = m_MatchRecs[i].GetGridPos();
+      for (int j = 0; j < Grids.Count; ++j)
+      {
+        int Idx = this.GridPosToIdx(Grids[j]);
+
+        if(!List.ContainsKey(Idx))
+        {
+          List[Idx] = new MatchGrid(Grids[j].x, Grids[j].y);
+        }
+        List[Idx].AddMatchRecord(m_MatchRecs[i]);
+      }
+    }
+
+    List<MatchGrid> List2 = new List<MatchGrid>();
+    foreach (KeyValuePair<int, MatchGrid> entry in List)
+    {
+      List2.Add(entry.Value);
+      
+    }
+    List2.Sort();
+    foreach (MatchGrid entry in List2)
+    {
+      m_CBLog2( entry.ToString());
+
+    }
+  }
   public void CleanMatchState(bool IsRemoveGem = true)
   {
     for (int i = 0; i < m_Col; ++i)
@@ -611,17 +729,19 @@ public class MatchThreeCore
 
     if (LSame && RSame)
     {
-      m_Grid[Col, Row].MatchCount++;
-      m_Grid[LCol, LRow].MatchCount++;
-      m_Grid[RCol, RRow].MatchCount++;
+      ///m_Grid[Col, Row].MatchCount++;
+      ///m_Grid[LCol, LRow].MatchCount++;
+      ///m_Grid[RCol, RRow].MatchCount++;
+      m_MatchRecs.Add(new MatchRecord(LCol, LRow, RCol, RRow));
       IsMatch = true;
     }
 
     if (USame && DSame)
     {
-      m_Grid[Col, Row].MatchCount++;
-      m_Grid[UCol, URow].MatchCount++;
-      m_Grid[DCol, DRow].MatchCount++;
+      ///m_Grid[Col, Row].MatchCount++;
+      ///m_Grid[UCol, URow].MatchCount++;
+      ///m_Grid[DCol, DRow].MatchCount++;
+      m_MatchRecs.Add(new MatchRecord(UCol, URow, DCol, DRow));
       IsMatch = true;
     }
 
