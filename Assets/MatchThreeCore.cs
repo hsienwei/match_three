@@ -97,6 +97,7 @@ public class MatchThreeCore
   {
     public int x;
     public int y;
+
     public GridPos(int vx, int vy) 
     { x = vx; y = vy; }
   }
@@ -211,6 +212,10 @@ public class MatchThreeCore
   private List<SwipeRecord> m_SwipeRecs ;
   private List<MoveRecord> m_PossibleMove;
   private List<MatchRecord> m_MatchRecs;
+  private Dictionary<int, int> m_GemAssignList;
+
+  private bool m_IsMatchDebug = false;
+  
 
   public MatchThreeCore(int Col, int Row, int ColorCount)
   {
@@ -224,6 +229,7 @@ public class MatchThreeCore
     m_SwipeRecs = new List<SwipeRecord>();
     m_PossibleMove = new List<MoveRecord>();
     m_MatchRecs = new List<MatchRecord>();
+    m_GemAssignList = new Dictionary<int, int>();
   }
 
   int Col { get { return m_Col; } }
@@ -280,12 +286,52 @@ public class MatchThreeCore
       }
     }
 
-    ScanMatch();
-    CleanMatchState();
+    if (!m_IsMatchDebug)
+    {
+      ScanMatch();
+      CleanMatchState();
+    }
+    AssignGemGen();
     GemDrop();
     Generate(false);
     ScanMatchPossible();
     CheckReset();
+  }
+
+  void AssignGemGen()
+  {
+    for (int i = 0; i < m_Col; ++i)
+    {
+      for (int j = 0; j < m_Row; ++j)
+      {
+
+        if (m_Grid[i, j].m_Gem == null)
+        {
+          //TODO: 檢查上方掉落
+          // 先補再產, 兩輪
+
+          // 上方沒有的話要產出
+
+          var Idx = GridPosToIdx(i, j);
+          if (m_GemAssignList.ContainsKey(Idx))
+          {
+            m_Grid[i, j].GenGem(m_GemAssignList[Idx]);
+            m_GemAssignList.Remove(Idx);
+
+            m_Grid[i, j].m_Gem.SetCountdown(300);
+            if (m_CBGenerate != null)
+            {
+              m_CBGenerate(i, j, GetColor(i, j));
+            }
+          }
+          
+
+
+          
+        }
+      }
+    }
+
   }
 
   void CheckReset()
@@ -315,13 +361,13 @@ public class MatchThreeCore
       }
     }
 
-    System.Text.StringBuilder m_TempBuilder = new System.Text.StringBuilder();
+    /*System.Text.StringBuilder m_TempBuilder = new System.Text.StringBuilder();
     m_TempBuilder.Remove(0, m_TempBuilder.Length);
     for (int i=0; i< m_PossibleMove.Count; ++i)
     {
       m_TempBuilder.Append(m_PossibleMove[i]);
     }
-    m_CBLog2(m_TempBuilder.ToString());
+    m_CBLog2(m_TempBuilder.ToString());*/
   }
 
   int CheckMatchPossible(int Col, int Row)
@@ -521,7 +567,10 @@ public class MatchThreeCore
           // 先補再產, 兩輪
 
           // 上方沒有的話要產出
+
           m_Grid[i, j].GenGem(m_Rand.Next(0, m_ColorCount));
+
+          
           m_Grid[i, j].m_Gem.SetCountdown(300);
           if (m_CBGenerate != null)
           {
@@ -567,7 +616,7 @@ public class MatchThreeCore
 
   public void ScanMatch()
   {
-    test();
+    
     m_IsHasMatch = false;
     m_MatchRecs.Clear();
 
@@ -581,6 +630,8 @@ public class MatchThreeCore
         }
       }
     }
+
+    test();
   }
 
   public bool IsHasClearState()
@@ -592,17 +643,18 @@ public class MatchThreeCore
   
   class MatchGrid : IComparable<MatchGrid>
   {
-    int m_x;
-    int m_y;
+    GridPos m_BasePos;
 
-    int m_v;
-    int m_h;
+    public int m_v;
+    public int m_h;
 
     List<MatchRecord> Recs;
+    List<GridPos> m_AllGrid;
     public MatchGrid(int x, int y)
     {
-      m_x = x; m_y = y;
+      m_BasePos = new GridPos(x, y);
       Recs = new List<MatchRecord>();
+      m_AllGrid = new List<GridPos>();
     }
 
     public void AddMatchRecord(MatchRecord Rec)
@@ -612,23 +664,62 @@ public class MatchThreeCore
         m_v++;
       else 
         m_h++;
+
+      var PosList = Rec.GetGridPos();
+      for(int i=0; i< PosList.Count; ++i)
+      {
+        if(!m_AllGrid.Contains( PosList[i]))
+        {
+          m_AllGrid.Add(PosList[i]);
+        }
+      }
+    }
+
+    public GridPos BasePos { get { return m_BasePos; } }
+    public List<GridPos> AllPos { get {return  m_AllGrid; } }
+
+    public bool IsMatch5()
+    {
+      return m_v == 3 || m_h == 3;
+    }
+
+    public bool IsMatchT()
+    {
+      return m_v >= 1 && m_h >= 1;
+    }
+
+    public bool IsMatch4()
+    {
+      return m_v >= 2 || m_h >= 2;
+    }
+
+    public bool IsMatch3()
+    {
+      return m_v >= 1 || m_h >= 1;
     }
 
     public int CompareTo(MatchGrid other)
     {
       if (other == null) return -1;
-      return -Recs.Count.CompareTo(other.Recs.Count);
+      int Compare = Recs.Count.CompareTo(other.Recs.Count);
+      if(Compare == 0)
+      {
+        if (Math.Abs(m_v - m_h) < Math.Abs(other.m_v - other.m_h))
+          Compare = 1;
+        else
+          Compare = 0;
+      }
+      return -Compare;
     }
 
     public override string ToString()
     {
-      return "" + m_x + "," + m_y + "," + m_v + "," + m_h;
+      return "" + m_BasePos.x + "," + m_BasePos.y + "," + m_v + "," + m_h;
     }
   };
 
   void test()
   {
-    m_CBLog2("====================");
     // 建立格子的索引
     Dictionary<int, MatchGrid> List = new Dictionary<int, MatchGrid>();
     for (int i = 0; i < m_MatchRecs.Count; ++i)
@@ -645,7 +736,7 @@ public class MatchThreeCore
         List[Idx].AddMatchRecord(m_MatchRecs[i]);
       }
     }
-
+    // 依照該格的消除次數做排序.
     List<MatchGrid> List2 = new List<MatchGrid>();
     foreach (KeyValuePair<int, MatchGrid> entry in List)
     {
@@ -653,14 +744,104 @@ public class MatchThreeCore
       
     }
     List2.Sort();
+
+    // 
     foreach (MatchGrid entry in List2)
     {
-      m_CBLog2( entry.ToString());
+      int BaseIdx = GridPosToIdx(entry.BasePos);
+      if (!List.ContainsKey(BaseIdx)) continue;
+
+      if (entry.IsMatch5())
+      {
+        // 移除該組合中, 每一格在索引中的MatchGrid.
+        var Pos = entry.AllPos;
+        m_GemAssignList[BaseIdx] = 24;
+        for (int i=0; i < Pos.Count; ++i)
+        {
+          int Idx = GridPosToIdx(Pos[i]);
+          if (List.Remove(Idx))
+          {
+            m_Grid[Pos[i].x, Pos[i].y].m_Gem.SetCountdown(300, m_Grid[Pos[i].x, Pos[i].y].Clear);
+            if (m_CBClear != null)
+            {
+              m_CBClear(Pos[i].x, Pos[i].y);
+            }
+            m_Grid[Pos[i].x, Pos[i].y].MatchCount = 0;
+          }
+        }
+        continue;
+      }
+
+      if (entry.IsMatchT())
+      {
+        // 移除該組合中, 每一格在索引中的MatchGrid.
+        var Pos = entry.AllPos;
+        m_GemAssignList[BaseIdx] = GetColor( entry.BasePos.x, entry.BasePos.y) + m_ColorCount * 3 ;
+        for (int i = 0; i < Pos.Count; ++i)
+        {
+          int Idx = GridPosToIdx(Pos[i]);
+          if (List.Remove(Idx))
+          {
+            m_Grid[Pos[i].x, Pos[i].y].m_Gem.SetCountdown(300, m_Grid[Pos[i].x, Pos[i].y].Clear);
+            if (m_CBClear != null)
+            {
+              m_CBClear(Pos[i].x, Pos[i].y);
+            }
+            m_Grid[Pos[i].x, Pos[i].y].MatchCount = 0;
+          }
+        }
+        continue;
+      }
+
+      if (entry.IsMatch4())
+      {
+        // 移除該組合中, 每一格在索引中的MatchGrid.
+        var Pos = entry.AllPos;
+        m_GemAssignList[BaseIdx] = m_ColorCount + GetColor(entry.BasePos.x, entry.BasePos.y) * 2 + ((entry.m_v > entry.m_h)?0:1);
+        for (int i = 0; i < Pos.Count; ++i)
+        {
+          int Idx = GridPosToIdx(Pos[i]);
+          if (List.Remove(Idx))
+          {
+            m_Grid[Pos[i].x, Pos[i].y].m_Gem.SetCountdown(300, m_Grid[Pos[i].x, Pos[i].y].Clear);
+            if (m_CBClear != null)
+            {
+              m_CBClear(Pos[i].x, Pos[i].y);
+            }
+            m_Grid[Pos[i].x, Pos[i].y].MatchCount = 0;
+          }
+        }
+        continue;
+      }
+
+      if (entry.IsMatch3())
+      {
+        // 移除該組合中, 每一格在索引中的MatchGrid.
+        var Pos = entry.AllPos;
+        for (int i = 0; i < Pos.Count; ++i)
+        {
+          int Idx = GridPosToIdx(Pos[i]);
+          if (List.Remove(Idx))
+          {
+            m_Grid[Pos[i].x, Pos[i].y].m_Gem.SetCountdown(300, m_Grid[Pos[i].x, Pos[i].y].Clear);
+            if (m_CBClear != null)
+            {
+              m_CBClear(Pos[i].x, Pos[i].y);
+            }
+            m_Grid[Pos[i].x, Pos[i].y].MatchCount = 0;
+          }
+        }
+        continue;
+      }
+      
+
+
 
     }
   }
   public void CleanMatchState(bool IsRemoveGem = true)
   {
+    return;
     for (int i = 0; i < m_Col; ++i)
     {
       for (int j = 0; j < m_Row; ++j)
