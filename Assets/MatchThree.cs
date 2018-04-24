@@ -60,7 +60,7 @@ public class MatchThree : MonoBehaviour
     if (m_GemGrid[Col, Row] == null)
     {
       SpriteRenderer GemInst = GameObject.Instantiate(m_GemTmp/*m_GemTmpList[m_MT.GetColor(Col, Row)]*/);
-      GemInst.sprite = m_SpriteList[m_MT.GetColor(Col, Row)];
+      GemInst.sprite = m_SpriteList[Color];
       GemInst.transform.position = new Vector3(Col * m_Size, -Row * m_Size, 0) - Offset;
       m_GemGrid[Col, Row] = GemInst.transform;
       GemInst.transform.localScale = Vector3.zero;
