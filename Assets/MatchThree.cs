@@ -72,6 +72,13 @@ public class MatchThree : MonoBehaviour
 
   void _OnClear(int Col, int Row)
   {
+
+    if (m_GemGrid[Col, Row] == null)
+    {
+      Debug.LogError(string.Format("onclear error:{0}, {1}", Col, Row));
+      return;
+    }
+
     var Gem = m_GemGrid[Col, Row].transform;
     m_GemGrid[Col, Row] = null;
     Gem.DOScale(0, 0.2f).OnComplete(() =>
@@ -153,7 +160,6 @@ public class MatchThree : MonoBehaviour
   public void TestClear()
   {
     m_MT.ScanMatch();
-    m_MT.CleanMatchState();
   }
 
   public void TestDrop()
@@ -169,7 +175,6 @@ public class MatchThree : MonoBehaviour
   public void TestClearAndGen()
   {
     m_MT.ScanMatch();
-    m_MT.CleanMatchState();
     m_MT.GemDrop();
     m_MT.Generate(false);
   }
