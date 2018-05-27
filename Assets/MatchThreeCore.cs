@@ -5,17 +5,19 @@ using System.Collections.Generic;
 
 public class MatchThreeCore
 {
-  enum GemType{
-    Normal = 0,
-    LineColumn = 1,
-    LineRow = 2,
-    Bomb = 3,
-    Wildcard = 4,
+  public struct IntVector2
+  {
+    int m_x;
+    int m_y;
 
-    NormalStart = 0,
-    LineStart = 6,
-    BombStart = 18,
-    SameAllStart = 24,
+    public int GemColor { get { return m_x; } }
+    public int GemType { get { return m_y; } }
+
+    public IntVector2(int x, int y) 
+    {
+      m_x = x;
+      m_y = y;
+    }
   }
 
   public class GridState
@@ -33,6 +35,14 @@ public class MatchThreeCore
       if (m_Gem == null)
       {
         m_Gem = new Gem(Color, Pos);
+      }
+    }
+
+    public void GenGem(IntVector2 GemInfo, GridPos Pos)
+    {
+      if (m_Gem == null)
+      {
+        m_Gem = new Gem(GemInfo, Pos);
       }
     }
 
@@ -58,8 +68,25 @@ public class MatchThreeCore
       Clear,
     }
 
+    public enum GemType
+    {
+      Normal = 0,
+      LineColumn = 1,
+      LineRow = 2,
+      Bomb = 3,
+      Wildcard = 4,
+
+      /*NormalStart = 0,
+      LineStart = 6,
+      BombStart = 18,
+      SameAllStart = 24,
+
+      NONE = -1,*/
+    }
+
     public GridPos m_TempPos;
     private int m_Color;
+    private GemType m_Type;
     private State m_State = State.Idle;
     private Action<Gem> m_Callback;
 
@@ -73,18 +100,19 @@ public class MatchThreeCore
       }
     } 
 
-    public int MatchColor
+    public GemType Type
     {
       get
       {
-        if (m_Color < (int)GemType.LineStart)
+        /*if (m_Color < (int)GemType.LineStart)
           return m_Color;
         else if (m_Color < (int)GemType.BombStart)
           return (m_Color - (int)GemType.LineStart) / 2;
         else if (m_Color < (int)GemType.SameAllStart)
           return (m_Color - (int)GemType.BombStart);
         else 
-          return m_Color;
+          return m_Color;*/
+        return m_Type;
       }
     }
 
@@ -92,6 +120,14 @@ public class MatchThreeCore
     {
       m_Color = Color;
       m_TempPos = Pos;
+      m_Type = GemType.Normal;
+    }
+
+    public Gem(IntVector2 State, GridPos Pos)
+    {
+      m_Color = State.GemColor;
+      m_TempPos = Pos;
+      m_Type = (GemType)State.GemType;
     }
 
     public void Update(int DeltaTime)
@@ -270,7 +306,7 @@ public class MatchThreeCore
   public static readonly int MOVE_TYPE_SWITCH = 2;
   public static readonly int MOVE_TYPE_SWITCHBACK = 3;
 
-  public delegate void OnGenerate(int Col, int Row, int Color);
+  public delegate void OnGenerate(int Col, int Row, int Color, Gem.GemType Type);
   public delegate void OnClear(int Col, int Row);
   public delegate void OnMove(int Col, int Row, int TargetCol, int TargetRow, int Type);
   public delegate void OnLock(int Col, int Row, int Count);
@@ -293,7 +329,7 @@ public class MatchThreeCore
   private List<SwipeRecord> m_SwipeRecs ;
   private List<MoveRecord> m_PossibleMove;
   private List<MatchRecord> m_MatchRecs;
-  private Dictionary<int, int> m_GemAssignList;
+  private Dictionary<int, IntVector2> m_GemAssignList;
   private List<SpecialRemove> m_GemForceRemoveList;
 
   private bool m_IsMatchDebug = false;
@@ -311,7 +347,7 @@ public class MatchThreeCore
     m_SwipeRecs = new List<SwipeRecord>();
     m_PossibleMove = new List<MoveRecord>();
     m_MatchRecs = new List<MatchRecord>();
-    m_GemAssignList = new Dictionary<int, int>();
+    m_GemAssignList = new Dictionary<int, IntVector2>();
     m_GemForceRemoveList = new List<SpecialRemove>();
   }
 
@@ -346,15 +382,13 @@ public class MatchThreeCore
 
     if (Grid1.m_Gem != null && Grid2.m_Gem != null)
     {
-      if (Grid1.m_Gem.Color == (int)GemType.SameAllStart || Grid2.m_Gem.Color == (int)GemType.SameAllStart)
+      if (Grid1.m_Gem.Type == Gem.GemType.Wildcard || Grid2.m_Gem.Type == Gem.GemType.Wildcard)
       {
         // TODO: 改在消除時進行, 可能需要在gem埋資訊.
-        int Color = 0;
-        if (Grid1.m_Gem.Color == (int)GemType.SameAllStart)
+        if (Grid1.m_Gem.Type == Gem.GemType.Wildcard)
         {
-          Color = Grid2.m_Gem.Color;
           var SameColorGemPosIdx = GetColorGems(Grid2.m_Gem);
-          SpecialRemove SpRemove = new SpecialRemove(Grid1.m_Gem.Color);
+          SpecialRemove SpRemove = new SpecialRemove((int)Grid1.m_Gem.Type);
           SpRemove.Enqueue(SameColorGemPosIdx);
           m_GemForceRemoveList.Add(SpRemove);
 
@@ -363,9 +397,8 @@ public class MatchThreeCore
         }
         else
         {
-          Color = Grid1.m_Gem.Color;
           var SameColorGemPosIdx = GetColorGems(Grid1.m_Gem);
-          SpecialRemove SpRemove = new SpecialRemove(Grid2.m_Gem.Color);
+          SpecialRemove SpRemove = new SpecialRemove((int)Grid2.m_Gem.Type);
           SpRemove.Enqueue(SameColorGemPosIdx);
           m_GemForceRemoveList.Add(SpRemove);
 
@@ -399,7 +432,7 @@ public class MatchThreeCore
     if (Row < 0 || Row >= m_Row) return -1;
     if (m_Grid[Col, Row].m_Gem == null)
       return -1;
-    return m_Grid[Col, Row].m_Gem.MatchColor;
+    return m_Grid[Col, Row].m_Gem.Color;
   }
 
   List<int> GetColorGems(Gem gem)
@@ -422,29 +455,8 @@ public class MatchThreeCore
 
   public void Update(int TimeUnit)
   {
-    // 執行swipe行為.
-    for(int i=0; i< m_SwipeRecs.Count; ++i)
-    {
-      var Rec = m_SwipeRecs[i];
-
-      ChangeGem(Rec.Pos1, Rec.Pos2);
-    }
-    m_SwipeRecs.Clear();
-
-    // 更新珠子, 清除已消除資料.
-    for (int i = 0; i < m_Col; ++i)
-    {
-      for (int j = 0; j < m_Row; ++j)
-      {
-        if (m_Grid[i, j].m_Gem != null)
-        {
-          m_Grid[i, j].m_Gem.Update(TimeUnit);
-          if (m_Grid[i, j].m_Gem.IsClear())
-            m_Grid[i, j].m_Gem = null;
-        }
-      
-      }
-    }
+    UpdateSwipe();
+    UpdateGem(TimeUnit);
 
     if (!m_IsMatchDebug)
     {
@@ -459,6 +471,35 @@ public class MatchThreeCore
     CheckReset();
   }
 
+  void UpdateSwipe()
+  {
+    // 執行swipe行為.
+    for (int i = 0; i < m_SwipeRecs.Count; ++i)
+    {
+      var Rec = m_SwipeRecs[i];
+
+      ChangeGem(Rec.Pos1, Rec.Pos2);
+    }
+    m_SwipeRecs.Clear();
+  }
+
+  void UpdateGem(int TimeUnit)
+  {
+    // 更新珠子, 清除已消除資料.
+    for (int i = 0; i < m_Col; ++i)
+    {
+      for (int j = 0; j < m_Row; ++j)
+      {
+        if (m_Grid[i, j].m_Gem != null)
+        {
+          m_Grid[i, j].m_Gem.Update(TimeUnit);
+          if (m_Grid[i, j].m_Gem.IsClear())
+            m_Grid[i, j].m_Gem = null;
+        }
+      }
+    }
+  }
+
   void SpecialRemoveGem()
   {
     
@@ -470,6 +511,7 @@ public class MatchThreeCore
       while (SpRemove.Dequeue(ref PosIdx))
       {
         GridIdxToPos(PosIdx, ref x, ref y);
+        if (m_Grid[x, y].m_Gem == null) continue;
         m_Grid[x, y].m_Gem.SetCountdown(300, OnGemMatchClear);
         if (m_CBClear != null)
         {
@@ -504,7 +546,7 @@ public class MatchThreeCore
             m_Grid[i, j].m_Gem.SetCountdown(300);
             if (m_CBGenerate != null)
             {
-              m_CBGenerate(i, j, GetColor(i, j));
+              m_CBGenerate(i, j, m_Grid[i, j].m_Gem.Color, m_Grid[i, j].m_Gem.Type);
             }
           }
           
@@ -692,64 +734,35 @@ public class MatchThreeCore
             m_Grid[i, j] = new GridState();
             m_Grid[i, j].GenGem(m_Rand.Next(0, m_ColorCount), new GridPos(i, j));
             m_Grid[i, j].m_Gem.SetCountdown(300);
-            m_CBGenerate(i, j, GetColor(i, j));
+            if (m_CBGenerate != null)
+            {
+              m_CBGenerate(i, j, m_Grid[i, j].m_Gem.Color, m_Grid[i, j].m_Gem.Type);
+            }
           }
         }
       }
       return;
     }
 
-
-    //for (int j = m_Row - 1; j >= 0; --j)
-    /*for (int j = 0; j < m_Row; ++j)
-    {
-      for (int i = 0; i < m_Col; ++i)
-      {
-        if (GetColor(i, j) == -1)
-        {
-          // 先補再產
-          // 上方沒有的話要產出.
-          // 先只看正上方.
-
-          //for(int k = j-1;  k >=0 ; --k)
-          for (int k = j + 1; k < m_Row; ++k)
-          {
-            if (GetColor(i, k) != -1)
-            {
-              m_Grid[i, j].Color = GetColor(i, k);
-              m_Grid[i, k].Color = -1;
-              m_Grid[i, j].LockCnt = 1000 ;
-              if (m_CBMove != null)
-              {
-                m_CBMove(i, k, i, j, MOVE_TYPE_MOVE);
-              }
-              break;
-            }
-           
-          }
-        }
-      }
-    }
-    */
     for (int i = 0; i < m_Col; ++i)
     {
       for (int j = 0; j < m_Row; ++j)
       {
-
+        // 由上往下掃 空格補珠, 如果遇到阻塞就換column.
         if (m_Grid[i, j].m_Gem == null)
         {
-          //TODO: 檢查上方掉落
-          // 先補再產, 兩輪
-
-          // 上方沒有的話要產出
-
           m_Grid[i, j].GenGem(m_Rand.Next(0, m_ColorCount), new GridPos(i, j));
-
-          
           m_Grid[i, j].m_Gem.SetCountdown(300);
           if (m_CBGenerate != null)
           {
-            m_CBGenerate(i, j, GetColor(i, j));
+            m_CBGenerate(i, j, m_Grid[i, j].m_Gem.Color, m_Grid[i, j].m_Gem.Type);
+          }
+        }
+        else
+        {
+          if( !m_Grid[i, j].m_Gem.IsCanMove())
+          {
+            break;
           }
         }
       }
@@ -931,7 +944,7 @@ public class MatchThreeCore
       {
         // 移除該組合中, 每一格在索引中的MatchGrid.
         var Pos = entry.AllPos;
-        m_GemAssignList[BaseIdx] = 24;
+        m_GemAssignList[BaseIdx] = new IntVector2(0, (int)Gem.GemType.Wildcard);
         for (int i=0; i < Pos.Count; ++i)
         {
           int Idx = GridPosToIdx(Pos[i]);
@@ -951,7 +964,7 @@ public class MatchThreeCore
       {
         // 移除該組合中, 每一格在索引中的MatchGrid.
         var Pos = entry.AllPos;
-        m_GemAssignList[BaseIdx] = GetMatchColor( entry.BasePos.x, entry.BasePos.y) + m_ColorCount * 3 ;
+        m_GemAssignList[BaseIdx] = new IntVector2(GetMatchColor(entry.BasePos.x, entry.BasePos.y), (int)Gem.GemType.Bomb);
         for (int i = 0; i < Pos.Count; ++i)
         {
           int Idx = GridPosToIdx(Pos[i]);
@@ -971,7 +984,7 @@ public class MatchThreeCore
       {
         // 移除該組合中, 每一格在索引中的MatchGrid.
         var Pos = entry.AllPos;
-        m_GemAssignList[BaseIdx] = m_ColorCount + GetMatchColor(entry.BasePos.x, entry.BasePos.y) * 2 + ((entry.m_v > entry.m_h)?1:0);
+        m_GemAssignList[BaseIdx] = new IntVector2(GetMatchColor(entry.BasePos.x, entry.BasePos.y), (entry.m_v > entry.m_h)? (int)Gem.GemType.LineColumn:(int)Gem.GemType.LineRow);
         for (int i = 0; i < Pos.Count; ++i)
         {
           int Idx = GridPosToIdx(Pos[i]);
@@ -1005,10 +1018,6 @@ public class MatchThreeCore
         }
         continue;
       }
-      
-
-
-
     }
   }
   
@@ -1093,7 +1102,7 @@ public class MatchThreeCore
           if (!m_Grid[i, j].m_Gem.IsCanMove())
             EmptyCnt = 0;
 
-          if (EmptyCnt == 0) 
+          if (EmptyCnt == 0)
             continue;
 
           if (m_Grid[i, j + EmptyCnt].m_Gem == null ||
@@ -1102,10 +1111,10 @@ public class MatchThreeCore
             ChangeGem(i, j, i, j + EmptyCnt);
             
           }
-          else
+          /*else
           {
             break;
-          }
+          }*/
         }
       }
     }
@@ -1130,46 +1139,48 @@ public class MatchThreeCore
   {
     TargetGem.SetClear();
 
-    if(TargetGem.Color >= (int)GemType.LineStart  && TargetGem.Color < (int)GemType.BombStart)
+    if (TargetGem.Type == Gem.GemType.LineColumn)
     {
       // test
-      SpecialRemove SpMove = new SpecialRemove(TargetGem.Color);
+      SpecialRemove SpMove = new SpecialRemove((int)TargetGem.Type);
       m_GemForceRemoveList.Add(SpMove);
-      if (TargetGem.Color % 2 == 0)
+      for (int i = 0; i < m_Row; ++i)
       {
-        for (int i = 0; i < m_Col; ++i)
+        if (m_Grid[TargetGem.m_TempPos.x, i].m_Gem != null && m_Grid[TargetGem.m_TempPos.x, i].m_Gem.IsCanMove())
         {
-          if (m_Grid[i, TargetGem.m_TempPos.y].m_Gem != null && m_Grid[i, TargetGem.m_TempPos.y].m_Gem.IsCanMove())
-          {
-            SpMove.Enqueue(GridPosToIdx(i, TargetGem.m_TempPos.y));
-          }
+          SpMove.Enqueue(GridPosToIdx(TargetGem.m_TempPos.x, i));
         }
       }
-      else
+
+    }
+    if (TargetGem.Type == Gem.GemType.LineRow)
+    {
+      SpecialRemove SpMove = new SpecialRemove((int)TargetGem.Type);
+      m_GemForceRemoveList.Add(SpMove);
+     
+      for (int i = 0; i < m_Col; ++i)
       {
-        for (int i = 0; i < m_Row; ++i)
+        if (m_Grid[i, TargetGem.m_TempPos.y].m_Gem != null && m_Grid[i, TargetGem.m_TempPos.y].m_Gem.IsCanMove())
         {
-          if (m_Grid[TargetGem.m_TempPos.x, i].m_Gem != null && m_Grid[TargetGem.m_TempPos.x, i].m_Gem.IsCanMove())
-          {
-            SpMove.Enqueue(GridPosToIdx(TargetGem.m_TempPos.x, i));
-          }
+          SpMove.Enqueue(GridPosToIdx(i, TargetGem.m_TempPos.y));
         }
       }
     }
 
-    if (TargetGem.Color >= (int)GemType.BombStart && TargetGem.Color < (int)GemType.SameAllStart)
+
+    if (TargetGem.Type == Gem.GemType.Bomb )
     {
-      int ColMin = TargetGem.m_TempPos.x - 2;
+      int ColMin = TargetGem.m_TempPos.x - 1;
       if (ColMin < 0) ColMin = 0;
-      int ColMax = TargetGem.m_TempPos.x + 2;
+      int ColMax = TargetGem.m_TempPos.x + 1;
       if (ColMax >= m_Col) ColMax = m_Col - 1;
-      int RowMin = TargetGem.m_TempPos.y - 2;
+      int RowMin = TargetGem.m_TempPos.y - 1;
       if (RowMin < 0) RowMin = 0;
-      int RowMax = TargetGem.m_TempPos.y + 2;
+      int RowMax = TargetGem.m_TempPos.y + 1;
       if (RowMax >= m_Row) RowMax = m_Row - 1;
 
 
-      SpecialRemove SpMove = new SpecialRemove(TargetGem.Color);
+      SpecialRemove SpMove = new SpecialRemove((int)TargetGem.Type);
       m_GemForceRemoveList.Add(SpMove);
 
       for (int i = ColMin; i <= ColMax; ++i)

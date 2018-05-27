@@ -53,18 +53,36 @@ public class MatchThree : MonoBehaviour
     m_MT.Update((int)(Time.deltaTime * 1000));
   }
 
-  void _OnGenerate(int Col, int Row, int Color)
+  void _OnGenerate(int Col, int Row, int Color, MatchThreeCore.Gem.GemType Type)
   {
     Vector3 Offset = new Vector3((m_Colume - 1) * 0.5f * m_Size, -(m_Row - 1) * 0.5f * m_Size, 0);
 
     if (m_GemGrid[Col, Row] == null)
     {
-      SpriteRenderer GemInst = GameObject.Instantiate(m_GemTmp/*m_GemTmpList[m_MT.GetColor(Col, Row)]*/);
-      GemInst.sprite = m_SpriteList[Color];
+      SpriteRenderer GemInst = GameObject.Instantiate(m_GemTmp);
+      switch (Type)
+      {
+        case MatchThreeCore.Gem.GemType.Normal:
+          GemInst.sprite = m_SpriteList[Color];
+          break;
+        case MatchThreeCore.Gem.GemType.Wildcard:
+          GemInst.sprite = m_SpriteList[24];
+          break;
+        case MatchThreeCore.Gem.GemType.Bomb:
+          GemInst.sprite = m_SpriteList[18 + Color];
+          break;
+        case MatchThreeCore.Gem.GemType.LineRow:
+          GemInst.sprite = m_SpriteList[6 + 2 * Color];
+          break;
+        case MatchThreeCore.Gem.GemType.LineColumn:
+          GemInst.sprite = m_SpriteList[6 + 2 * Color + 1];
+          break;
+      }
+
       GemInst.transform.position = new Vector3(Col * m_Size, -Row * m_Size, 0) - Offset;
       m_GemGrid[Col, Row] = GemInst.transform;
       GemInst.transform.localScale = Vector3.zero;
-      GemInst.transform.DOScale(1.3f, 0.2f);
+      GemInst.transform.DOScale(1.3f, 0.25f);
       m_GemPos[Col, Row] = GemInst.transform.position;
     }
 
