@@ -6,6 +6,12 @@ using System.Collections.Generic;
 public class MatchThreeCore
 {
   enum GemType{
+    Normal = 0,
+    LineColumn = 1,
+    LineRow = 2,
+    Bomb = 3,
+    Wildcard = 4,
+
     NormalStart = 0,
     LineStart = 6,
     BombStart = 18,
@@ -965,7 +971,7 @@ public class MatchThreeCore
       {
         // 移除該組合中, 每一格在索引中的MatchGrid.
         var Pos = entry.AllPos;
-        m_GemAssignList[BaseIdx] = m_ColorCount + GetMatchColor(entry.BasePos.x, entry.BasePos.y) * 2 + ((entry.m_v > entry.m_h)?0:1);
+        m_GemAssignList[BaseIdx] = m_ColorCount + GetMatchColor(entry.BasePos.x, entry.BasePos.y) * 2 + ((entry.m_v > entry.m_h)?1:0);
         for (int i = 0; i < Pos.Count; ++i)
         {
           int Idx = GridPosToIdx(Pos[i]);
