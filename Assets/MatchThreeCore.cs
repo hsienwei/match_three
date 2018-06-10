@@ -5,6 +5,8 @@ using System.Collections.Generic;
 
 public class MatchThreeCore
 {
+  public readonly int WAIT_UPDATE_TIME_UNIT = 300;
+
   public struct IntVector2
   {
     int m_x;
@@ -76,12 +78,6 @@ public class MatchThreeCore
       Bomb = 3,
       Wildcard = 4,
 
-      /*NormalStart = 0,
-      LineStart = 6,
-      BombStart = 18,
-      SameAllStart = 24,
-
-      NONE = -1,*/
     }
 
     public GridPos m_TempPos;
@@ -104,14 +100,6 @@ public class MatchThreeCore
     {
       get
       {
-        /*if (m_Color < (int)GemType.LineStart)
-          return m_Color;
-        else if (m_Color < (int)GemType.BombStart)
-          return (m_Color - (int)GemType.LineStart) / 2;
-        else if (m_Color < (int)GemType.SameAllStart)
-          return (m_Color - (int)GemType.BombStart);
-        else 
-          return m_Color;*/
         return m_Type;
       }
     }
@@ -151,7 +139,6 @@ public class MatchThreeCore
     {
       m_Countdown = Cnt;
       m_State = State.Moving;
-      m_Callback = null;
       m_Callback = Callback;
     }
 
@@ -178,26 +165,39 @@ public class MatchThreeCore
 
   class SwipeRecord
   {
-    //public int m_x1, m_y1, m_x2, m_y2;
-    GridPos m_Pos1, m_Pos2;
-    /*public SwipeRecord(int x1, int y1, int x2, int y2)
+    public enum State
     {
-      m_x1 = x1;
-      m_y1 = y1;
-      m_x2 = x2;
-      m_y2 = y2;
-    }*/
+      START,
+      REVERT,
+      END
+    };
+
+    State m_State;
+    GridPos m_Pos1, m_Pos2;
     public GridPos Pos1 { get { return m_Pos1; } }
     public GridPos Pos2 { get { return m_Pos2; } }
-
-    public SwipeRecord(GridPos Pos1, GridPos Pos2)
+    public SwipeRecord(GridPos Pos1, GridPos Pos2, State s = State.START)
     {
       m_Pos1 = Pos1;
       m_Pos2 = Pos2;
+      m_State = s;
     }
 
-    
+    public void SetChanged()
+    {
+      m_State = State.END;
+    }
 
+    public bool IsStart()
+    {
+      return m_State == State.START;
+    }
+
+
+    public bool IsEnd()
+    {
+      return m_State == State.END;
+    }
   };
 
   class MoveRecord
@@ -211,6 +211,11 @@ public class MatchThreeCore
       m_x1 = x1;
       m_y1 = y1;
       m_Direction = Direction;
+    }
+
+    public bool IsEqual( int x, int y, Direction Dir)
+    {
+      return x == m_x1 && y == m_y1 && m_Direction == Dir;
     }
 
     public override string ToString()
@@ -290,7 +295,7 @@ public class MatchThreeCore
 
   }
 
-  enum Direction
+  public enum Direction
   { 
     DOWN,
     UP,
@@ -335,6 +340,21 @@ public class MatchThreeCore
   private bool m_IsMatchDebug = false;
   
 
+  public static Direction GetDirection(int Fromx1, int Fromy1, int Tox2, int Toy2)
+  {
+    if (Fromx1 > Tox2)
+      return Direction.LEFT;
+    else if (Fromx1 < Tox2)
+      return Direction.RIGHT;
+    else
+    {
+      if (Fromy1 > Toy2)
+        return Direction.UP;
+      else
+        return Direction.DOWN;
+    }
+  }
+
   public MatchThreeCore(int Col, int Row, int ColorCount)
   {
     m_Grid = new GridState[Col, Row];
@@ -354,66 +374,104 @@ public class MatchThreeCore
   int Col { get { return m_Col; } }
   int Row { get { return m_Row; } }
 
-  //public void ChangeGem(GridState Grid1, GridState Grid2)
-  public void ChangeGem(GridPos Pos1, GridPos Pos2)
+  public void SwipeChangeGem(GridPos Pos1, GridPos Pos2)
   {
-    ChangeGem( Pos1.x,  Pos1.y,  Pos2.x,  Pos2.y);
+
+    m_CBLog2("" + GetDirection(Pos1.x, Pos1.y, Pos2.x, Pos2.y));
+
+    bool IsCanMatch = false;
+    for (int i = 0; i < m_PossibleMove.Count; ++i)
+    {
+      var PossibleMove = m_PossibleMove[i];
+      if (PossibleMove.IsEqual(Pos1.x, Pos1.y, GetDirection(Pos1.x, Pos1.y, Pos2.x, Pos2.y)))
+      {
+        IsCanMatch = true;
+        break;
+      }
+
+      if (PossibleMove.IsEqual(Pos2.x, Pos2.y, GetDirection(Pos2.x, Pos2.y, Pos1.x, Pos1.y)))
+      {
+        IsCanMatch = true;
+        break;
+      }
+    }
+
+
+    ChangeGem( Pos1.x,  Pos1.y,  Pos2.x,  Pos2.y, IsCanMatch);
   }
 
-  public void ChangeGem(int x1, int y1, int x2, int y2)
+  public void ChangeGem(int x1, int y1, int x2, int y2, bool oneWay = true)
   {
     GridState Grid1 = m_Grid[x1, y1];
     GridState Grid2 = m_Grid[x2, y2];
 
-    var Tmp = Grid1.m_Gem;
-    Grid1.m_Gem = Grid2.m_Gem;
-    Grid2.m_Gem = Tmp;
+    
 
-    if (Grid1.m_Gem != null)
+    if (oneWay)
     {
-      Grid1.m_Gem.m_TempPos.x = x1;
-      Grid1.m_Gem.m_TempPos.y = y1;
-    }
-    if (Grid2.m_Gem != null)
-    {
-      Grid2.m_Gem.m_TempPos.x = x2;
-      Grid2.m_Gem.m_TempPos.y = y2;
-    }
+      var Tmp = Grid1.m_Gem;
+      Grid1.m_Gem = Grid2.m_Gem;
+      Grid2.m_Gem = Tmp;
 
-    if (Grid1.m_Gem != null && Grid2.m_Gem != null)
-    {
-      if (Grid1.m_Gem.Type == Gem.GemType.Wildcard || Grid2.m_Gem.Type == Gem.GemType.Wildcard)
+      if (Grid1.m_Gem != null)
       {
-        // TODO: 改在消除時進行, 可能需要在gem埋資訊.
-        if (Grid1.m_Gem.Type == Gem.GemType.Wildcard)
-        {
-          var SameColorGemPosIdx = GetColorGems(Grid2.m_Gem);
-          SpecialRemove SpRemove = new SpecialRemove((int)Grid1.m_Gem.Type);
-          SpRemove.Enqueue(SameColorGemPosIdx);
-          m_GemForceRemoveList.Add(SpRemove);
+        Grid1.m_Gem.m_TempPos.x = x1;
+        Grid1.m_Gem.m_TempPos.y = y1;
+      }
+      if (Grid2.m_Gem != null)
+      {
+        Grid2.m_Gem.m_TempPos.x = x2;
+        Grid2.m_Gem.m_TempPos.y = y2;
+      }
 
-          SpRemove.Enqueue(GridPosToIdx(Grid1.m_Gem.m_TempPos));
-          SpRemove.Enqueue(GridPosToIdx(Grid2.m_Gem.m_TempPos));
-        }
-        else
-        {
-          var SameColorGemPosIdx = GetColorGems(Grid1.m_Gem);
-          SpecialRemove SpRemove = new SpecialRemove((int)Grid2.m_Gem.Type);
-          SpRemove.Enqueue(SameColorGemPosIdx);
-          m_GemForceRemoveList.Add(SpRemove);
+      m_CBMove(x1, y1, x2, y2, MOVE_TYPE_SWITCH);
 
-          SpRemove.Enqueue(GridPosToIdx(Grid1.m_Gem.m_TempPos));
-          SpRemove.Enqueue(GridPosToIdx(Grid2.m_Gem.m_TempPos));
+      if (m_Grid[x1, y1].m_Gem != null)
+        m_Grid[x1, y1].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT);
+      if (m_Grid[x2, y2].m_Gem != null)
+        m_Grid[x2, y2].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT);
+
+      if (Grid1.m_Gem != null && Grid2.m_Gem != null)
+      {
+        if (Grid1.m_Gem.Type == Gem.GemType.Wildcard || Grid2.m_Gem.Type == Gem.GemType.Wildcard)
+        {
+          // TODO: 改在消除時進行, 可能需要在gem埋資訊.
+          if (Grid1.m_Gem.Type == Gem.GemType.Wildcard)
+          {
+            var SameColorGemPosIdx = GetColorGems(Grid2.m_Gem);
+            SpecialRemove SpRemove = new SpecialRemove((int)Grid1.m_Gem.Type);
+            SpRemove.Enqueue(SameColorGemPosIdx);
+            m_GemForceRemoveList.Add(SpRemove);
+
+            SpRemove.Enqueue(GridPosToIdx(Grid1.m_Gem.m_TempPos));
+            SpRemove.Enqueue(GridPosToIdx(Grid2.m_Gem.m_TempPos));
+          }
+          else
+          {
+            var SameColorGemPosIdx = GetColorGems(Grid1.m_Gem);
+            SpecialRemove SpRemove = new SpecialRemove((int)Grid2.m_Gem.Type);
+            SpRemove.Enqueue(SameColorGemPosIdx);
+            m_GemForceRemoveList.Add(SpRemove);
+
+            SpRemove.Enqueue(GridPosToIdx(Grid1.m_Gem.m_TempPos));
+            SpRemove.Enqueue(GridPosToIdx(Grid2.m_Gem.m_TempPos));
+          }
         }
       }
     }
+    else
+    {
+      m_CBMove(x1, y1, x2, y2, MOVE_TYPE_SWITCHBACK);
 
-    m_CBMove(x1, y1, x2, y2, MOVE_TYPE_SWITCH);
+      if (m_Grid[x1, y1].m_Gem != null)
+        m_Grid[x1, y1].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT * 2);
+      if (m_Grid[x2, y2].m_Gem != null)
+        m_Grid[x2, y2].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT * 2);
+    }
+  
 
-    if (m_Grid[x1, y1].m_Gem != null)
-      m_Grid[x1, y1].m_Gem.SetCountdown(300);
-    if (m_Grid[x2, y2].m_Gem != null)
-      m_Grid[x2, y2].m_Gem.SetCountdown(300);
+
+    
 
   }
 
@@ -477,10 +535,18 @@ public class MatchThreeCore
     for (int i = 0; i < m_SwipeRecs.Count; ++i)
     {
       var Rec = m_SwipeRecs[i];
+      if (m_Grid[Rec.Pos1.x, Rec.Pos1.y].m_Gem == null || !m_Grid[Rec.Pos1.x, Rec.Pos1.y].m_Gem.IsCanMove())
+        continue;
+      if (m_Grid[Rec.Pos2.x, Rec.Pos2.y].m_Gem == null || !m_Grid[Rec.Pos2.x, Rec.Pos2.y].m_Gem.IsCanMove())
+        continue;
 
-      ChangeGem(Rec.Pos1, Rec.Pos2);
+      if (!Rec.IsEnd())
+      {
+        SwipeChangeGem(Rec.Pos1, Rec.Pos2);
+        Rec.SetChanged();
+      }
     }
-    m_SwipeRecs.Clear();
+    m_SwipeRecs.RemoveAll( (SwipeRecord Rec) => { return Rec.IsEnd(); });
   }
 
   void UpdateGem(int TimeUnit)
@@ -502,7 +568,6 @@ public class MatchThreeCore
 
   void SpecialRemoveGem()
   {
-    
     for(int i=0; i< m_GemForceRemoveList.Count; ++i)
     {
       SpecialRemove SpRemove = m_GemForceRemoveList[i];
@@ -511,8 +576,9 @@ public class MatchThreeCore
       while (SpRemove.Dequeue(ref PosIdx))
       {
         GridIdxToPos(PosIdx, ref x, ref y);
-        if (m_Grid[x, y].m_Gem == null) continue;
-        m_Grid[x, y].m_Gem.SetCountdown(300, OnGemMatchClear);
+        if (m_Grid[x, y].m_Gem == null || !m_Grid[x, y].m_Gem.IsCanMove()) 
+          continue;
+        m_Grid[x, y].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT, OnGemMatchClear);
         if (m_CBClear != null)
         {
           m_CBClear(x, y);
@@ -543,16 +609,12 @@ public class MatchThreeCore
             m_Grid[i, j].GenGem(m_GemAssignList[Idx], new GridPos(i, j));
             m_GemAssignList.Remove(Idx);
 
-            m_Grid[i, j].m_Gem.SetCountdown(300);
+            m_Grid[i, j].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT);
             if (m_CBGenerate != null)
             {
               m_CBGenerate(i, j, m_Grid[i, j].m_Gem.Color, m_Grid[i, j].m_Gem.Type);
             }
           }
-          
-
-
-          
         }
       }
     }
@@ -733,7 +795,7 @@ public class MatchThreeCore
           {
             m_Grid[i, j] = new GridState();
             m_Grid[i, j].GenGem(m_Rand.Next(0, m_ColorCount), new GridPos(i, j));
-            m_Grid[i, j].m_Gem.SetCountdown(300);
+            m_Grid[i, j].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT);
             if (m_CBGenerate != null)
             {
               m_CBGenerate(i, j, m_Grid[i, j].m_Gem.Color, m_Grid[i, j].m_Gem.Type);
@@ -752,7 +814,7 @@ public class MatchThreeCore
         if (m_Grid[i, j].m_Gem == null)
         {
           m_Grid[i, j].GenGem(m_Rand.Next(0, m_ColorCount), new GridPos(i, j));
-          m_Grid[i, j].m_Gem.SetCountdown(300);
+          m_Grid[i, j].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT);
           if (m_CBGenerate != null)
           {
             m_CBGenerate(i, j, m_Grid[i, j].m_Gem.Color, m_Grid[i, j].m_Gem.Type);
@@ -770,21 +832,20 @@ public class MatchThreeCore
     
   }
 
-  public bool Swipe(int Col, int Row, int Direction)
+  public bool Swipe(int Col, int Row, Direction Dir)
   {
     int CurrColor = GetColor(Col, Row);
-    //int TargetCol = Col, TargetRow = Row;
     GridPos Target = new GridPos(Col, Row);
 
-    switch (Direction)
+    switch (Dir)
     {
-      case 0:
+      case Direction.DOWN:
         Target.y++; break;
-      case 1:
+      case Direction.UP:
         Target.y--; break;
-      case 2:
+      case Direction.LEFT:
         Target.x--; break;
-      case 3:
+      case Direction.RIGHT:
         Target.x++; break;
     }
 
@@ -793,9 +854,7 @@ public class MatchThreeCore
     if (Target.y < 0) return false;
     if (Target.y >= m_Row) return false;
 
-    //if (m_Grid[Col, Row].LockCnt > 0) return false;
-    if(!m_Grid[Col, Row].IsCanMove()) return false;
-    //if (m_Grid[TargetCol, TargetRow].LockCnt > 0) return false;
+    if (!m_Grid[Col, Row].IsCanMove()) return false;
     if (!m_Grid[Target.x, Target.y].IsCanMove()) return false;
 
     m_SwipeRecs.Add(new SwipeRecord(new GridPos(Col, Row), Target));
@@ -950,7 +1009,7 @@ public class MatchThreeCore
           int Idx = GridPosToIdx(Pos[i]);
           if (List.Remove(Idx))
           {
-            m_Grid[Pos[i].x, Pos[i].y].m_Gem.SetCountdown(300, OnGemMatchClear);
+            m_Grid[Pos[i].x, Pos[i].y].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT, OnGemMatchClear);
             if (m_CBClear != null)
             {
               m_CBClear(Pos[i].x, Pos[i].y);
@@ -970,7 +1029,7 @@ public class MatchThreeCore
           int Idx = GridPosToIdx(Pos[i]);
           if (List.Remove(Idx))
           {
-            m_Grid[Pos[i].x, Pos[i].y].m_Gem.SetCountdown(300, OnGemMatchClear);
+            m_Grid[Pos[i].x, Pos[i].y].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT, OnGemMatchClear);
             if (m_CBClear != null)
             {
               m_CBClear(Pos[i].x, Pos[i].y);
@@ -990,7 +1049,7 @@ public class MatchThreeCore
           int Idx = GridPosToIdx(Pos[i]);
           if (List.Remove(Idx))
           {
-            m_Grid[Pos[i].x, Pos[i].y].m_Gem.SetCountdown(300, OnGemMatchClear);
+            m_Grid[Pos[i].x, Pos[i].y].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT, OnGemMatchClear);
             if (m_CBClear != null)
             {
               m_CBClear(Pos[i].x, Pos[i].y);
@@ -1009,7 +1068,7 @@ public class MatchThreeCore
           int Idx = GridPosToIdx(Pos[i]);
           if (List.Remove(Idx))
           {
-            m_Grid[Pos[i].x, Pos[i].y].m_Gem.SetCountdown(300, OnGemMatchClear);
+            m_Grid[Pos[i].x, Pos[i].y].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT, OnGemMatchClear);
             if (m_CBClear != null)
             {
               m_CBClear(Pos[i].x, Pos[i].y);
@@ -1126,7 +1185,7 @@ public class MatchThreeCore
     {
       for (int j = 0; j < m_Row; ++j)
       {
-        m_Grid[i, j].m_Gem.SetCountdown(300, OnGemOnlyClear);
+        m_Grid[i, j].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT, OnGemOnlyClear);
         if (m_CBClear != null)
         {
           m_CBClear(i, j);

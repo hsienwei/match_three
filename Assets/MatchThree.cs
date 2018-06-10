@@ -129,8 +129,8 @@ public class MatchThree : MonoBehaviour
     }
     else if (MoveType == MatchThreeCore.MOVE_TYPE_SWITCHBACK)
     {
-      GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.15f ).SetLoops(2, LoopType.Yoyo);
-      GemB.DOMove(m_GemPos[Col, Row], 0.15f ).SetLoops(2, LoopType.Yoyo);
+      GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.3f ).SetLoops(2, LoopType.Yoyo);
+      GemB.DOMove(m_GemPos[Col, Row], 0.3f ).SetLoops(2, LoopType.Yoyo);
     }
   }
 
@@ -162,11 +162,9 @@ public class MatchThree : MonoBehaviour
     return WorldPos;
   }
   
-  void Swipe(int Col, int Row, int Direction)
+  void Swipe(int Col, int Row, MatchThreeCore.Direction Direction)
   {
     bool IsSwipeSuccess = m_MT.Swipe(Col, Row, Direction);
-
-
   }
 
   public void Reset()
@@ -232,26 +230,22 @@ public class MatchThree : MonoBehaviour
     {
       if (SwipeDelta.y < 0)
       {
-        // 上
-        Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, 0);
+        Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, MatchThreeCore.Direction.DOWN);
       }
       if (SwipeDelta.y > 0)
       {
-        // 下
-        Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, 1);
+        Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, MatchThreeCore.Direction.UP);
       }
     }
     else if (Mathf.Abs(SwipeDelta.x) > Mathf.Abs(SwipeDelta.y))
     {
       if (SwipeDelta.x > 0)
       {
-        // 右
-        Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, 3);
+        Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, MatchThreeCore.Direction.RIGHT);
       }
       if (SwipeDelta.x < 0)
       {
-        // 左
-        Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, 2);
+        Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, MatchThreeCore.Direction.LEFT);
       }
     }
   }
