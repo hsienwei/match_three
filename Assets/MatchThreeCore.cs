@@ -431,6 +431,22 @@ public class MatchThreeCore
       if (m_Grid[x2, y2].m_Gem != null)
         m_Grid[x2, y2].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT);
 
+      
+    }
+    else
+    {
+
+      /*if (Grid1.m_Gem != null)
+      {
+        Grid1.m_Gem.m_TempPos.x = x1;
+        Grid1.m_Gem.m_TempPos.y = y1;
+      }
+      if (Grid2.m_Gem != null)
+      {
+        Grid2.m_Gem.m_TempPos.x = x2;
+        Grid2.m_Gem.m_TempPos.y = y2;
+      }
+
       if (Grid1.m_Gem != null && Grid2.m_Gem != null)
       {
         if (Grid1.m_Gem.Type == Gem.GemType.Wildcard || Grid2.m_Gem.Type == Gem.GemType.Wildcard)
@@ -457,10 +473,8 @@ public class MatchThreeCore
             SpRemove.Enqueue(GridPosToIdx(Grid2.m_Gem.m_TempPos));
           }
         }
-      }
-    }
-    else
-    {
+      }*/
+
       m_CBMove(x1, y1, x2, y2, MOVE_TYPE_SWITCHBACK);
 
       if (m_Grid[x1, y1].m_Gem != null)
@@ -468,10 +482,6 @@ public class MatchThreeCore
       if (m_Grid[x2, y2].m_Gem != null)
         m_Grid[x2, y2].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT * 2);
     }
-  
-
-
-    
 
   }
 
