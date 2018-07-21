@@ -79,6 +79,7 @@ public class MatchThreeCore
       LineRow = 2,
       Bomb = 3,
       Wildcard = 4,
+      Cross = 5,
 
     }
 
@@ -248,6 +249,16 @@ public class MatchThreeCore
       return m_y1 == m_y2;
     }
 
+    public bool IsHorizontal()
+    {
+      return m_x1 == m_x2;
+    }
+
+    public bool IsSquare()
+    {
+      return (Math.Abs( m_x1 - m_x2)  == 1) && (Math.Abs(m_y1 - m_y2) == 1);
+    }
+
     public List<GridPos> GetGridPos()
     {
       List<GridPos> List = new List<GridPos>();
@@ -297,12 +308,17 @@ public class MatchThreeCore
 
   }
 
-  public enum Direction
+  public enum Direction 
   { 
     DOWN,
     UP,
     LEFT,
     RIGHT,
+    LD,
+    RD,
+    LU,
+    RU,
+    MAX
   };
 
   public int GridPosToIdx(GridPos g) { return g.x + g.y * m_Col; }
@@ -381,7 +397,7 @@ public class MatchThreeCore
 
     m_CBLog2("" + GetDirection(Pos1.x, Pos1.y, Pos2.x, Pos2.y));
 
-    bool IsCanMatch = false;
+    /*bool IsCanMatch = false;
     for (int i = 0; i < m_PossibleMove.Count; ++i)
     {
       var PossibleMove = m_PossibleMove[i];
@@ -396,8 +412,8 @@ public class MatchThreeCore
         IsCanMatch = true;
         break;
       }
-    }
-
+    }*/
+    bool IsCanMatch = true;
 
     ChangeGem( Pos1.x,  Pos1.y,  Pos2.x,  Pos2.y, IsCanMatch);
   }
@@ -908,6 +924,7 @@ public class MatchThreeCore
 
     public int m_v;
     public int m_h;
+    public int m_s;
 
     List<MatchRecord> Recs;
     List<GridPos> m_AllGrid;
@@ -923,8 +940,10 @@ public class MatchThreeCore
       Recs.Add(Rec);
       if (Rec.IsVertical()) 
         m_v++;
-      else 
+      else if(Rec.IsHorizontal())
         m_h++;
+      else if (Rec.IsSquare())
+        m_s++;
 
       var PosList = Rec.GetGridPos();
       for(int i=0; i< PosList.Count; ++i)
@@ -952,6 +971,11 @@ public class MatchThreeCore
     public bool IsMatch4()
     {
       return m_v >= 2 || m_h >= 2;
+    }
+
+    public bool IsMatchS()
+    {
+      return m_s == 4;
     }
 
     public bool IsMatch3()
@@ -1072,7 +1096,27 @@ public class MatchThreeCore
         continue;
       }
 
-      if (entry.IsMatch3())
+      if (entry.IsMatchS())
+      {
+        var Pos = entry.AllPos;
+        m_GemAssignList[BaseIdx] = new IntVector2(0, (int)Gem.GemType.Cross);
+
+        for (int i = 0; i < Pos.Count; ++i)
+        {
+          int Idx = GridPosToIdx(Pos[i]);
+          if (List.Remove(Idx))
+          {
+            m_Grid[Pos[i].x, Pos[i].y].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT, OnGemMatchClear);
+            if (m_CBClear != null)
+            {
+              m_CBClear(Pos[i].x, Pos[i].y);
+            }
+          }
+        }
+        continue;
+      }
+
+        if (entry.IsMatch3())
       {
         // 移除該組合中, 每一格在索引中的MatchGrid.
         var Pos = entry.AllPos;
@@ -1092,7 +1136,8 @@ public class MatchThreeCore
       }
     }
   }
-  
+
+
   bool CheckMatch(int Col, int Row)
   {
     if (!m_Grid[Col, Row].IsCanMove())
@@ -1101,61 +1146,110 @@ public class MatchThreeCore
     int CurrColor = GetMatchColor(Col, Row);
     if (CurrColor == -1) return false;
 
-    
 
+    // DOWN, UP, LEFT, RIGHT, LD, RD, LU, RU
+    int[,] CheckPos = new int[(int)Direction.MAX, 2] { { 0, 1 }, { 0, -1 }, { -1, 0 }, { 1, 0 }, { -1, 1 }, { 1, 1 }, { -1, -1 }, { 1, -1 }, };
+    bool[] CheckSameState = new bool[(int)Direction.MAX] { false, false, false, false, false, false, false, false };
+    
     bool IsMatch = false;
 
-    //橫豎各自檢查
+    // check 8 way.
 
-    bool LSame, RSame, USame, DSame;
-
-    LSame = RSame = USame = DSame = false;
-
-    int LCol = Col - 1, LRow = Row;
-    if (LCol >= 0)
+    for(int i=0; i<(int)Direction.MAX; ++i )
     {
-      if (m_Grid[LCol, LRow].IsCanMove())
-        LSame = (CurrColor == GetMatchColor(LCol, LRow));
-    }
-    int RCol = Col + 1, RRow = Row;
-    if (RCol < m_Col)
-    {
-      if (m_Grid[RCol, RRow].IsCanMove())
-        RSame = (CurrColor == GetMatchColor(RCol, RRow));
+      CheckSameState[i] = SameColorCheck_( CurrColor, Col, Row, CheckPos[i, 0], CheckPos[i, 1] );
     }
 
-    int UCol = Col, URow = Row - 1;
-    if (URow >= 0)
+    // ---
+    // ooo
+    // ---
+    if (CheckSameState[(int)Direction.LEFT] && CheckSameState[(int)Direction.RIGHT])
     {
-      if (m_Grid[UCol, URow].IsCanMove())
-        USame = (CurrColor == GetMatchColor(UCol, URow));
-    }
-    int DCol = Col, DRow = Row + 1;
-    if (DRow < m_Row)
-    {
-      if (m_Grid[DCol, DRow].IsCanMove())
-        DSame = (CurrColor == GetMatchColor(DCol, DRow));
-    }
-
-    if (LSame && RSame)
-    {
-      ///m_Grid[Col, Row].MatchCount++;
-      ///m_Grid[LCol, LRow].MatchCount++;
-      ///m_Grid[RCol, RRow].MatchCount++;
-      m_MatchRecs.Add(new MatchRecord(LCol, LRow, RCol, RRow));
+      m_MatchRecs.Add( new MatchRecord(
+        Col + CheckPos[(int)Direction.LEFT, 0],
+        Row + CheckPos[(int)Direction.LEFT, 1],
+        Col + CheckPos[(int)Direction.RIGHT, 0],
+        Row + CheckPos[(int)Direction.RIGHT, 1]));
       IsMatch = true;
     }
 
-    if (USame && DSame)
+    // -o-
+    // -o-
+    // -o-
+    if (CheckSameState[(int)Direction.UP] && CheckSameState[(int)Direction.DOWN])
     {
-      ///m_Grid[Col, Row].MatchCount++;
-      ///m_Grid[UCol, URow].MatchCount++;
-      ///m_Grid[DCol, DRow].MatchCount++;
-      m_MatchRecs.Add(new MatchRecord(UCol, URow, DCol, DRow));
+      m_MatchRecs.Add(new MatchRecord(
+        Col + CheckPos[(int)Direction.UP, 0],
+        Row + CheckPos[(int)Direction.UP, 1],
+        Col + CheckPos[(int)Direction.DOWN, 0],
+        Row + CheckPos[(int)Direction.DOWN, 1]));
+      IsMatch = true;
+    }
+
+    // oo-
+    // oo-
+    // ---
+    if (CheckSameState[(int)Direction.UP] && CheckSameState[(int)Direction.LEFT] && CheckSameState[(int)Direction.LU])
+    {
+      m_MatchRecs.Add(new MatchRecord(
+        Col + CheckPos[(int)Direction.LU, 0],
+        Row + CheckPos[(int)Direction.LU, 1],
+        Col ,
+        Row ));
+      IsMatch = true;
+    }
+
+    // -oo
+    // -oo
+    // ---
+    if (CheckSameState[(int)Direction.UP] && CheckSameState[(int)Direction.RIGHT] && CheckSameState[(int)Direction.RU])
+    {
+      m_MatchRecs.Add(new MatchRecord(
+        Col + CheckPos[(int)Direction.UP, 0],
+        Row + CheckPos[(int)Direction.UP, 1],
+        Col + CheckPos[(int)Direction.RIGHT, 0],
+        Row + CheckPos[(int)Direction.RIGHT, 1]));
+      IsMatch = true;
+    }
+
+    // ---
+    // oo-
+    // oo-
+    if (CheckSameState[(int)Direction.DOWN] && CheckSameState[(int)Direction.LEFT] && CheckSameState[(int)Direction.LD])
+    {
+      m_MatchRecs.Add(new MatchRecord(
+        Col + CheckPos[(int)Direction.LEFT, 0],
+        Row + CheckPos[(int)Direction.LEFT, 1],
+        Col + CheckPos[(int)Direction.DOWN, 0],
+        Row + CheckPos[(int)Direction.DOWN, 1]));
+      IsMatch = true;
+    }
+
+    // ---
+    // -oo
+    // -oo
+    if (CheckSameState[(int)Direction.DOWN] && CheckSameState[(int)Direction.RIGHT] && CheckSameState[(int)Direction.RD])
+    {
+      m_MatchRecs.Add(new MatchRecord(
+        Col ,
+        Row ,
+        Col + CheckPos[(int)Direction.RD, 0],
+        Row + CheckPos[(int)Direction.RD, 1]));
       IsMatch = true;
     }
 
     return IsMatch;
+  }
+
+  public bool SameColorCheck_(int TargetColor, int TargetPosX, int TargetPosY, int PosOffsetX, int PosOffsetY)
+  {
+    int Col = TargetPosX + PosOffsetX, Row = TargetPosY + PosOffsetY;
+    if (Col >= 0 && Col < m_Col && Row >= 0 && Row < m_Row)
+    {
+      if (m_Grid[Col, Row].IsCanMove())
+        return (TargetColor == GetMatchColor(Col, Row));
+    }
+    return false;
   }
 
   public void GemDrop()

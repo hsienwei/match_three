@@ -68,6 +68,9 @@ public class MatchThree : MonoBehaviour
         case MatchThreeCore.Gem.GemType.Wildcard:
           GemInst.sprite = m_SpriteList[24];
           break;
+        case MatchThreeCore.Gem.GemType.Cross:
+          GemInst.sprite = m_SpriteList[25];
+          break;
         case MatchThreeCore.Gem.GemType.Bomb:
           GemInst.sprite = m_SpriteList[18 + Color];
           break;
