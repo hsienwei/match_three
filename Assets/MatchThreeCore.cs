@@ -6,6 +6,8 @@ using System.Collections.Generic;
 public class MatchThreeCore
 {
   public readonly int WAIT_UPDATE_TIME_UNIT = 300;
+  public readonly int WAIT_UPDATE_TIME_UNIT2 = 100;
+
 
   public struct IntVector2
   {
@@ -311,7 +313,7 @@ public class MatchThreeCore
   public static readonly int MOVE_TYPE_SWITCH = 2;
   public static readonly int MOVE_TYPE_SWITCHBACK = 3;
 
-  public delegate void OnGenerate(int Col, int Row, int Color, Gem.GemType Type);
+  public delegate void OnGenerate(int Col, int Row, int Color, Gem.GemType Type, int TimeUnit);
   public delegate void OnClear(int Col, int Row);
   public delegate void OnMove(int Col, int Row, int TargetCol, int TargetRow, int Type);
   public delegate void OnLock(int Col, int Row, int Count);
@@ -427,9 +429,9 @@ public class MatchThreeCore
       m_CBMove(x1, y1, x2, y2, MOVE_TYPE_SWITCH);
 
       if (m_Grid[x1, y1].m_Gem != null)
-        m_Grid[x1, y1].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT);
+        m_Grid[x1, y1].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT2);
       if (m_Grid[x2, y2].m_Gem != null)
-        m_Grid[x2, y2].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT);
+        m_Grid[x2, y2].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT2);
 
       
     }
@@ -619,10 +621,10 @@ public class MatchThreeCore
             m_Grid[i, j].GenGem(m_GemAssignList[Idx], new GridPos(i, j));
             m_GemAssignList.Remove(Idx);
 
-            m_Grid[i, j].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT);
+            m_Grid[i, j].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT2);
             if (m_CBGenerate != null)
             {
-              m_CBGenerate(i, j, m_Grid[i, j].m_Gem.Color, m_Grid[i, j].m_Gem.Type);
+              m_CBGenerate(i, j, m_Grid[i, j].m_Gem.Color, m_Grid[i, j].m_Gem.Type, WAIT_UPDATE_TIME_UNIT2);
             }
           }
         }
@@ -808,7 +810,7 @@ public class MatchThreeCore
             m_Grid[i, j].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT);
             if (m_CBGenerate != null)
             {
-              m_CBGenerate(i, j, m_Grid[i, j].m_Gem.Color, m_Grid[i, j].m_Gem.Type);
+              m_CBGenerate(i, j, m_Grid[i, j].m_Gem.Color, m_Grid[i, j].m_Gem.Type, WAIT_UPDATE_TIME_UNIT2);
             }
           }
         }
@@ -824,11 +826,12 @@ public class MatchThreeCore
         if (m_Grid[i, j].m_Gem == null)
         {
           m_Grid[i, j].GenGem(m_Rand.Next(0, m_ColorCount), new GridPos(i, j));
-          m_Grid[i, j].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT);
+          m_Grid[i, j].m_Gem.SetCountdown(WAIT_UPDATE_TIME_UNIT2);
           if (m_CBGenerate != null)
           {
-            m_CBGenerate(i, j, m_Grid[i, j].m_Gem.Color, m_Grid[i, j].m_Gem.Type);
+            m_CBGenerate(i, j, m_Grid[i, j].m_Gem.Color, m_Grid[i, j].m_Gem.Type, WAIT_UPDATE_TIME_UNIT2);
           }
+          break;
         }
         else
         {
@@ -1180,10 +1183,6 @@ public class MatchThreeCore
             ChangeGem(i, j, i, j + EmptyCnt);
             
           }
-          /*else
-          {
-            break;
-          }*/
         }
       }
     }

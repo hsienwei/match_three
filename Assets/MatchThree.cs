@@ -53,7 +53,7 @@ public class MatchThree : MonoBehaviour
     m_MT.Update((int)(Time.deltaTime * 1000));
   }
 
-  void _OnGenerate(int Col, int Row, int Color, MatchThreeCore.Gem.GemType Type)
+  void _OnGenerate(int Col, int Row, int Color, MatchThreeCore.Gem.GemType Type, int TimeUnit)
   {
     Vector3 Offset = new Vector3((m_Colume - 1) * 0.5f * m_Size, -(m_Row - 1) * 0.5f * m_Size, 0);
 
@@ -82,7 +82,7 @@ public class MatchThree : MonoBehaviour
       GemInst.transform.position = new Vector3(Col * m_Size, -Row * m_Size, 0) - Offset;
       m_GemGrid[Col, Row] = GemInst.transform;
       GemInst.transform.localScale = Vector3.zero;
-      GemInst.transform.DOScale(1.3f, 0.25f);
+      GemInst.transform.DOScale(1.3f, TimeUnit * 0.001f);
       m_GemPos[Col, Row] = GemInst.transform.position;
     }
 
@@ -114,23 +114,23 @@ public class MatchThree : MonoBehaviour
 
     if (MoveType == MatchThreeCore.MOVE_TYPE_MOVE)
     {
-      GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.3f );
+      GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.1f );
 
       m_GemGrid[Col, Row] =  null;
       m_GemGrid[TargetCol, TargetRow] = GemA;
     }
     else if (MoveType == MatchThreeCore.MOVE_TYPE_SWITCH)
     {
-      GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.3f );
-      GemB.DOMove(m_GemPos[Col, Row], 0.3f );
+      GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.1f );
+      GemB.DOMove(m_GemPos[Col, Row], 0.1f );
 
       m_GemGrid[Col, Row] = GemB;
       m_GemGrid[TargetCol, TargetRow] = GemA;
     }
     else if (MoveType == MatchThreeCore.MOVE_TYPE_SWITCHBACK)
     {
-      GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.3f ).SetLoops(2, LoopType.Yoyo);
-      GemB.DOMove(m_GemPos[Col, Row], 0.3f ).SetLoops(2, LoopType.Yoyo);
+      GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.1f ).SetLoops(2, LoopType.Yoyo);
+      GemB.DOMove(m_GemPos[Col, Row], 0.1f ).SetLoops(2, LoopType.Yoyo);
     }
   }
 
