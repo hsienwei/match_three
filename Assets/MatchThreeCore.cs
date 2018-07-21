@@ -397,7 +397,7 @@ public class MatchThreeCore
 
     m_CBLog2("" + GetDirection(Pos1.x, Pos1.y, Pos2.x, Pos2.y));
 
-    /*bool IsCanMatch = false;
+    bool IsCanMatch = false;
     for (int i = 0; i < m_PossibleMove.Count; ++i)
     {
       var PossibleMove = m_PossibleMove[i];
@@ -412,8 +412,8 @@ public class MatchThreeCore
         IsCanMatch = true;
         break;
       }
-    }*/
-    bool IsCanMatch = true;
+    }
+    //bool IsCanMatch = true;
 
     ChangeGem( Pos1.x,  Pos1.y,  Pos2.x,  Pos2.y, IsCanMatch);
   }
@@ -722,6 +722,20 @@ public class MatchThreeCore
         m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.LEFT));
         break;
       }
+
+      // 左移上方
+      if (CurrColor == GetColor(Col - 1, Row - 1) && CurrColor == GetColor(Col - 2, Row - 1) && CurrColor == GetColor(Col - 2, Row ))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.LEFT));
+        break;
+      }
+
+      // 左移下方
+      if (CurrColor == GetColor(Col - 1, Row + 1) && CurrColor == GetColor(Col - 2, Row + 1) && CurrColor == GetColor(Col - 2, Row))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.LEFT));
+        break;
+      }
     } while (false);
 
     do
@@ -746,6 +760,20 @@ public class MatchThreeCore
       }
       // 右移中
       if (CurrColor == GetColor(Col + 1, Row + 1) && CurrColor == GetColor(Col + 1, Row - 1))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.RIGHT));
+        break;
+      }
+
+      // 右移上方
+      if (CurrColor == GetColor(Col + 1, Row - 1) && CurrColor == GetColor(Col + 2, Row - 1) && CurrColor == GetColor(Col + 2, Row))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.RIGHT));
+        break;
+      }
+
+      // 右移下方
+      if (CurrColor == GetColor(Col + 1, Row + 1) && CurrColor == GetColor(Col + 2, Row + 1) && CurrColor == GetColor(Col + 2, Row))
       {
         m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.RIGHT));
         break;
@@ -778,6 +806,19 @@ public class MatchThreeCore
         m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.UP));
         break;
       }
+
+      // 上移左方
+      if (CurrColor == GetColor(Col - 1, Row - 1) && CurrColor == GetColor(Col - 1, Row - 2) && CurrColor == GetColor(Col , Row - 2))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.UP));
+        break;
+      }
+      // 上移右方
+      if (CurrColor == GetColor(Col + 1, Row - 1) && CurrColor == GetColor(Col + 1, Row - 2) && CurrColor == GetColor(Col, Row - 2))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.UP));
+        break;
+      }
     } while (false);
 
     do
@@ -802,6 +843,19 @@ public class MatchThreeCore
       }
       // 下移中
       if (CurrColor == GetColor(Col + 1, Row + 1) && CurrColor == GetColor(Col - 1, Row + 1))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.DOWN));
+        break;
+      }
+
+      // 下移左方
+      if (CurrColor == GetColor(Col - 1, Row + 1) && CurrColor == GetColor(Col - 1, Row + 2) && CurrColor == GetColor(Col, Row + 2))
+      {
+        m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.DOWN));
+        break;
+      }
+      // 下移右方
+      if (CurrColor == GetColor(Col + 1, Row + 1) && CurrColor == GetColor(Col + 1, Row + 2) && CurrColor == GetColor(Col, Row + 2))
       {
         m_PossibleMove.Add(new MoveRecord(Col, Row, Direction.DOWN));
         break;
