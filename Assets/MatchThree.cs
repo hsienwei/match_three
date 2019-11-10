@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Lean.Touch;
 using DG.Tweening;
+using Match3;
 
 
 public class MatchThree : MonoBehaviour
@@ -24,13 +25,13 @@ public class MatchThree : MonoBehaviour
   private Transform[,] m_GemGrid;
   private Vector3[,] m_GemPos;
 
-  private MatchThreeCore m_MT;
+  private Match3Core m_MT;
 
 
   // Use this for initialization
   void Start()
   {
-    m_MT = new MatchThreeCore(m_Colume, m_Row, 6);
+    m_MT = new Match3Core(m_Colume, m_Row, 6);
     m_MT.m_CBGenerate = _OnGenerate;
     m_MT.m_CBClear = _OnClear;
     m_MT.m_CBMove = _OnMove;
@@ -53,7 +54,7 @@ public class MatchThree : MonoBehaviour
     m_MT.Update((int)(Time.deltaTime * 1000));
   }
 
-  void _OnGenerate(int Col, int Row, int Color, MatchThreeCore.Gem.GemType Type, int TimeUnit)
+  void _OnGenerate(int Col, int Row, int Color, Match3Core.Gem.GemType Type, int TimeUnit)
   {
     Vector3 Offset = new Vector3((m_Colume - 1) * 0.5f * m_Size, -(m_Row - 1) * 0.5f * m_Size, 0);
 
@@ -62,22 +63,22 @@ public class MatchThree : MonoBehaviour
       SpriteRenderer GemInst = GameObject.Instantiate(m_GemTmp);
       switch (Type)
       {
-        case MatchThreeCore.Gem.GemType.Normal:
+        case Match3Core.Gem.GemType.Normal:
           GemInst.sprite = m_SpriteList[Color];
           break;
-        case MatchThreeCore.Gem.GemType.Wildcard:
+        case Match3Core.Gem.GemType.Wildcard:
           GemInst.sprite = m_SpriteList[24];
           break;
-        case MatchThreeCore.Gem.GemType.Cross:
+        case Match3Core.Gem.GemType.Cross:
           GemInst.sprite = m_SpriteList[25];
           break;
-        case MatchThreeCore.Gem.GemType.Bomb:
+        case Match3Core.Gem.GemType.Bomb:
           GemInst.sprite = m_SpriteList[18 + Color];
           break;
-        case MatchThreeCore.Gem.GemType.LineRow:
+        case Match3Core.Gem.GemType.LineRow:
           GemInst.sprite = m_SpriteList[6 + 2 * Color];
           break;
-        case MatchThreeCore.Gem.GemType.LineColumn:
+        case Match3Core.Gem.GemType.LineColumn:
           GemInst.sprite = m_SpriteList[6 + 2 * Color + 1];
           break;
       }
@@ -113,16 +114,14 @@ public class MatchThree : MonoBehaviour
     var GemA = m_GemGrid[Col, Row];
     var GemB = m_GemGrid[TargetCol, TargetRow];
 
-    int MoveNum = Mathf.Abs(TargetRow - Row) + Mathf.Abs(TargetCol - Col);
-
-    if (MoveType == MatchThreeCore.MOVE_TYPE_MOVE)
+    if (MoveType == Match3Core.MOVE_TYPE_MOVE)
     {
       GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.1f );
 
       m_GemGrid[Col, Row] =  null;
       m_GemGrid[TargetCol, TargetRow] = GemA;
     }
-    else if (MoveType == MatchThreeCore.MOVE_TYPE_SWITCH)
+    else if (MoveType == Match3Core.MOVE_TYPE_SWITCH)
     {
       GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.1f );
       GemB.DOMove(m_GemPos[Col, Row], 0.1f );
@@ -130,7 +129,7 @@ public class MatchThree : MonoBehaviour
       m_GemGrid[Col, Row] = GemB;
       m_GemGrid[TargetCol, TargetRow] = GemA;
     }
-    else if (MoveType == MatchThreeCore.MOVE_TYPE_SWITCHBACK)
+    else if (MoveType == Match3Core.MOVE_TYPE_SWITCHBACK)
     {
       GemA.DOMove(m_GemPos[TargetCol, TargetRow], 0.1f ).SetLoops(2, LoopType.Yoyo);
       GemB.DOMove(m_GemPos[Col, Row], 0.1f ).SetLoops(2, LoopType.Yoyo);
@@ -165,7 +164,7 @@ public class MatchThree : MonoBehaviour
     return WorldPos;
   }
   
-  void Swipe(int Col, int Row, MatchThreeCore.Direction Direction)
+  void Swipe(int Col, int Row, Direction Direction)
   {
     bool IsSwipeSuccess = m_MT.Swipe(Col, Row, Direction);
   }
@@ -233,22 +232,22 @@ public class MatchThree : MonoBehaviour
     {
       if (SwipeDelta.y < 0)
       {
-        Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, MatchThreeCore.Direction.DOWN);
+        Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, Direction.DOWN);
       }
       if (SwipeDelta.y > 0)
       {
-        Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, MatchThreeCore.Direction.UP);
+        Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, Direction.UP);
       }
     }
     else if (Mathf.Abs(SwipeDelta.x) > Mathf.Abs(SwipeDelta.y))
     {
       if (SwipeDelta.x > 0)
       {
-        Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, MatchThreeCore.Direction.RIGHT);
+        Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, Direction.RIGHT);
       }
       if (SwipeDelta.x < 0)
       {
-        Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, MatchThreeCore.Direction.LEFT);
+        Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, Direction.LEFT);
       }
     }
   }
