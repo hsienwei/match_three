@@ -169,6 +169,11 @@ public class MatchThree : MonoBehaviour
     bool IsSwipeSuccess = m_MT.Swipe(Col, Row, Direction);
   }
 
+  void Tap(int Col, int Row)
+  {
+    m_MT.Tap(Col, Row);
+  }
+
   public void Reset()
   {
     m_MT.Reset();
@@ -219,6 +224,7 @@ public class MatchThree : MonoBehaviour
     // Hook into the events we need
     LeanTouch.OnFingerDown += OnFingerDown;
     LeanTouch.OnFingerSwipe += OnFingerSwipe;
+    LeanTouch.OnFingerTap += OnFingerTap;
   }
 
   protected virtual void OnDisable()
@@ -226,6 +232,7 @@ public class MatchThree : MonoBehaviour
     // Unhook the events
     LeanTouch.OnFingerDown -= OnFingerDown;
     LeanTouch.OnFingerSwipe -= OnFingerSwipe;
+    LeanTouch.OnFingerTap -= OnFingerTap;
   }
 
   public void OnFingerDown(LeanFinger finger)
@@ -260,6 +267,11 @@ public class MatchThree : MonoBehaviour
         Swipe((int)m_TouchGemPos.x, (int)m_TouchGemPos.y, Direction.LEFT);
       }
     }
+  }
+
+  public void OnFingerTap(LeanFinger finger)
+  {
+    Tap((int)m_TouchGemPos.x, (int)m_TouchGemPos.y);
   }
 
 

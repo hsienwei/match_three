@@ -142,24 +142,29 @@ namespace Match3
       }
     }
 
-    class SwipeRecord
+    class ActionRecord
     {
+      public enum Type
+      {
+        SWIPE,
+        TAP
+      }
+
       public enum State
       {
         START,
-        REVERT,
         END
       };
 
-      State m_State;
-      GridPos m_Pos1, m_Pos2;
+      protected GridPos m_Pos1;
       public GridPos Pos1 { get { return m_Pos1; } }
-      public GridPos Pos2 { get { return m_Pos2; } }
-      public SwipeRecord(GridPos Pos1, GridPos Pos2, State s = State.START)
+
+      protected State m_State;
+      protected Type m_Type;
+
+      public Type getType()
       {
-        m_Pos1 = Pos1;
-        m_Pos2 = Pos2;
-        m_State = s;
+        return m_Type;
       }
 
       public void SetChanged()
@@ -172,10 +177,33 @@ namespace Match3
         return m_State == State.START;
       }
 
-
       public bool IsEnd()
       {
         return m_State == State.END;
+      }
+    }
+    class SwipeRecord : ActionRecord
+    {
+      
+      protected GridPos m_Pos2;
+      public GridPos Pos2 { get { return m_Pos2; } }
+      public SwipeRecord(GridPos Pos1, GridPos Pos2, State s = State.START)
+      {
+        m_Pos1 = Pos1;
+        m_Pos2 = Pos2;
+        m_State = s;
+        m_Type = Type.SWIPE;
+      }
+
+    };
+
+    class TapRecord : ActionRecord
+    {
+      public TapRecord(GridPos Pos1, State s = State.START)
+      {
+        m_Pos1 = Pos1;
+        m_State = s;
+        m_Type = Type.TAP;
       }
     };
 
@@ -313,7 +341,7 @@ namespace Match3
 
     private Random m_Rand;
 
-    private List<SwipeRecord> m_SwipeRecs;
+    private List<ActionRecord> m_ActionRecs;
     private List<MoveRecord> m_PossibleMove;
     private List<MatchRecord> m_MatchRecs;
     private Dictionary<int, IntVector2> m_GemAssignList;
@@ -347,7 +375,7 @@ namespace Match3
 
       m_Rand = new Random();
 
-      m_SwipeRecs = new List<SwipeRecord>();
+      m_ActionRecs = new List<ActionRecord>();
       m_PossibleMove = new List<MoveRecord>();
       m_MatchRecs = new List<MatchRecord>();
       m_GemAssignList = new Dictionary<int, IntVector2>();
@@ -381,6 +409,20 @@ namespace Match3
       //bool IsCanMatch = true;
 
       ChangeGem(Pos1.x, Pos1.y, Pos2.x, Pos2.y, IsCanMatch || !m_IsSwapIfMatch);
+    }
+
+    public void TapGem(GridPos Pos1)
+    {
+      if (m_Grid[Pos1.x, Pos1.y].m_Gem != null)
+      {
+        if (m_Grid[Pos1.x, Pos1.y].m_Gem.Type == Gem.GemType.Normal)
+          return;
+
+        SpecialRemove SpMove = new SpecialRemove((int)Gem.GemType.Normal);
+        m_GemForceRemoveList.Add(SpMove);
+        SpMove.Enqueue(GridPosToIdx(Pos1.x, Pos1.y));
+      }
+
     }
 
     public void ChangeGem(int x1, int y1, int x2, int y2, bool oneWay = true)
@@ -490,21 +532,37 @@ namespace Match3
     void UpdateSwipe()
     {
       // 執行swipe行為.
-      for (int i = 0; i < m_SwipeRecs.Count; ++i)
+      for (int i = 0; i < m_ActionRecs.Count; ++i)
       {
-        var Rec = m_SwipeRecs[i];
-        if (m_Grid[Rec.Pos1.x, Rec.Pos1.y].m_Gem == null || !m_Grid[Rec.Pos1.x, Rec.Pos1.y].m_Gem.IsCanMove())
-          continue;
-        if (m_Grid[Rec.Pos2.x, Rec.Pos2.y].m_Gem == null || !m_Grid[Rec.Pos2.x, Rec.Pos2.y].m_Gem.IsCanMove())
-          continue;
-
-        if (!Rec.IsEnd())
+        var oriRec = m_ActionRecs[i];
+        if (oriRec.getType() == ActionRecord.Type.SWIPE)
         {
-          SwipeChangeGem(Rec.Pos1, Rec.Pos2);
-          Rec.SetChanged();
+          var Rec = oriRec as SwipeRecord;
+          if (m_Grid[Rec.Pos1.x, Rec.Pos1.y].m_Gem == null || !m_Grid[Rec.Pos1.x, Rec.Pos1.y].m_Gem.IsCanMove())
+            continue;
+          if (m_Grid[Rec.Pos2.x, Rec.Pos2.y].m_Gem == null || !m_Grid[Rec.Pos2.x, Rec.Pos2.y].m_Gem.IsCanMove())
+            continue;
+
+          if (!Rec.IsEnd())
+          {
+            SwipeChangeGem(Rec.Pos1, Rec.Pos2);
+            Rec.SetChanged();
+          }
+        }
+        else
+        {
+          if (m_Grid[oriRec.Pos1.x, oriRec.Pos1.y].m_Gem == null || !m_Grid[oriRec.Pos1.x, oriRec.Pos1.y].m_Gem.IsCanMove())
+            continue;
+
+          if (!oriRec.IsEnd())
+          {
+            TapGem(oriRec.Pos1);
+            oriRec.SetChanged();
+          }
         }
       }
-      m_SwipeRecs.RemoveAll((SwipeRecord Rec) => { return Rec.IsEnd(); });
+
+      m_ActionRecs.RemoveAll((ActionRecord Rec) => { return Rec.IsEnd(); });
     }
 
     void UpdateGem(int TimeUnit)
@@ -582,7 +640,7 @@ namespace Match3
 
     void CheckReset()
     {
-      if (m_SwipeRecs.Count > 0) return;
+      if (m_ActionRecs.Count > 0) return;
       if (m_PossibleMove.Count > 0) return;
       for (int i = 0; i < m_ColumnCnt; ++i)
       {
@@ -870,7 +928,19 @@ namespace Match3
       if (!m_Grid[Col, Row].IsCanMove()) return false;
       if (!m_Grid[Target.x, Target.y].IsCanMove()) return false;
 
-      m_SwipeRecs.Add(new SwipeRecord(new GridPos(Col, Row), Target));
+      m_ActionRecs.Add(new SwipeRecord(new GridPos(Col, Row), Target));
+
+      return true;
+    }
+
+    public bool Tap(int Col, int Row)
+    {
+      if (Col < 0) return false;
+      if (Col >= m_ColumnCnt) return false;
+      if (Row < 0) return false;
+      if (Row >= m_RowCnt) return false;
+
+      m_ActionRecs.Add(new TapRecord(new GridPos(Col, Row)));
 
       return true;
     }
