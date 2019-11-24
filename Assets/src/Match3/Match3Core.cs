@@ -319,7 +319,8 @@ namespace Match3
     private Dictionary<int, IntVector2> m_GemAssignList;
     private List<SpecialRemove> m_GemForceRemoveList;
 
-    private bool m_IsMatchDebug = false;
+    public bool m_IsCheckMatch = true;
+    public bool m_IsSwapIfMatch = true;
 
 
     public static Direction GetDirection(int Fromx1, int Fromy1, int Tox2, int Toy2)
@@ -379,7 +380,7 @@ namespace Match3
       }
       //bool IsCanMatch = true;
 
-      ChangeGem(Pos1.x, Pos1.y, Pos2.x, Pos2.y, IsCanMatch);
+      ChangeGem(Pos1.x, Pos1.y, Pos2.x, Pos2.y, IsCanMatch || !m_IsSwapIfMatch);
     }
 
     public void ChangeGem(int x1, int y1, int x2, int y2, bool oneWay = true)
@@ -417,45 +418,6 @@ namespace Match3
       }
       else
       {
-
-        /*if (Grid1.m_Gem != null)
-        {
-          Grid1.m_Gem.m_TempPos.x = x1;
-          Grid1.m_Gem.m_TempPos.y = y1;
-        }
-        if (Grid2.m_Gem != null)
-        {
-          Grid2.m_Gem.m_TempPos.x = x2;
-          Grid2.m_Gem.m_TempPos.y = y2;
-        }
-
-        if (Grid1.m_Gem != null && Grid2.m_Gem != null)
-        {
-          if (Grid1.m_Gem.Type == Gem.GemType.Wildcard || Grid2.m_Gem.Type == Gem.GemType.Wildcard)
-          {
-            // TODO: 改在消除時進行, 可能需要在gem埋資訊.
-            if (Grid1.m_Gem.Type == Gem.GemType.Wildcard)
-            {
-              var SameColorGemPosIdx = GetColorGems(Grid2.m_Gem);
-              SpecialRemove SpRemove = new SpecialRemove((int)Grid1.m_Gem.Type);
-              SpRemove.Enqueue(SameColorGemPosIdx);
-              m_GemForceRemoveList.Add(SpRemove);
-
-              SpRemove.Enqueue(GridPosToIdx(Grid1.m_Gem.m_TempPos));
-              SpRemove.Enqueue(GridPosToIdx(Grid2.m_Gem.m_TempPos));
-            }
-            else
-            {
-              var SameColorGemPosIdx = GetColorGems(Grid1.m_Gem);
-              SpecialRemove SpRemove = new SpecialRemove((int)Grid2.m_Gem.Type);
-              SpRemove.Enqueue(SameColorGemPosIdx);
-              m_GemForceRemoveList.Add(SpRemove);
-
-              SpRemove.Enqueue(GridPosToIdx(Grid1.m_Gem.m_TempPos));
-              SpRemove.Enqueue(GridPosToIdx(Grid2.m_Gem.m_TempPos));
-            }
-          }
-        }*/
 
         m_CBMove(x1, y1, x2, y2, MOVE_TYPE_SWITCHBACK);
 
@@ -505,25 +467,24 @@ namespace Match3
 
     public void Update(int timeUnit)
     {
-      
-UpdateSwipe();
+
+      UpdateSwipe();
       UpdateGem(timeUnit);
       AssignGemGen();
-
-      
+      SpecialRemoveGem();
       GemDrop();
       Generate(false);
 
-      if (!m_IsMatchDebug)
+      if (m_IsCheckMatch)
       {
         ScanMatch();
       }
 
-      SpecialRemoveGem();
-      
-      
       CheckReset();
-      ScanMatchPossible();
+      if (m_IsCheckMatch)
+      {
+        ScanMatchPossible();
+      }
     }
 
     void UpdateSwipe()

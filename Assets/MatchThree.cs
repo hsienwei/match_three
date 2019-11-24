@@ -175,6 +175,16 @@ public class MatchThree : MonoBehaviour
   }
 
   #region Test_methon
+  public void DebugEnableMatch(bool isEnableMatch)
+  {
+    m_MT.m_IsCheckMatch = isEnableMatch;
+  }
+
+  public void DebugEnableSwapIfMatch(bool isSwapIfMatch)
+  {
+    m_MT.m_IsSwapIfMatch = isSwapIfMatch;
+  }
+
   public void TestClear()
   {
     m_MT.ScanMatch();
